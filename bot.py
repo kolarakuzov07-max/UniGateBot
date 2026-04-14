@@ -10,7 +10,6 @@ import os
 BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
 ADMIN_ID = 1446300344
 
-# Тестовые реквизиты
 CARD_NUMBER = "1234 5678 9012 3456"
 CARD_HOLDER = "IVAN IVANOV"
 
@@ -43,24 +42,23 @@ def main_keyboard():
 
 def tariffs_keyboard():
     builder = InlineKeyboardBuilder()
-    builder.button(text="1 месяц — 200₽", callback_data="tariff_1")
-    builder.button(text="3 месяца — 500₽", callback_data="tariff_3")
-    builder.button(text="6 месяцев — 900₽", callback_data="tariff_6")
+    builder.button(text="1 месяц — 100₽", callback_data="tariff_1")
+    builder.button(text="2 месяца — 180₽", callback_data="tariff_2")
+    builder.button(text="3 месяца — 250₽", callback_data="tariff_3")
     builder.button(text="◀️ Назад", callback_data="back_to_menu")
     builder.adjust(1)
     return builder.as_markup()
 
 def copy_keyboard(connection_string):
     builder = InlineKeyboardBuilder()
-    builder.button(text="📋 Скопировать ключ", copy_text=connection_string)
+    builder.button(text="📋 Скопировать ключ", callback_data="copy_key")
     builder.button(text="◀️ В меню", callback_data="back_to_menu")
     builder.adjust(1)
     return builder.as_markup()
 
 def payment_keyboard(amount, months, user_id):
-    text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
     builder = InlineKeyboardBuilder()
-    builder.button(text="📋 Скопировать реквизиты", copy_text=text)
+    builder.button(text="📋 Скопировать реквизиты", callback_data="copy_payment")
     builder.button(text="✅ Я оплатил", callback_data=f"paid_{months}")
     builder.button(text="◀️ Назад", callback_data="back_to_menu")
     builder.adjust(1)
@@ -69,7 +67,26 @@ def payment_keyboard(amount, months, user_id):
 def get_test_key(user_id):
     return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
 
-# ========== ПРОФИЛЬ ==========
+# ========== КОПИРОВАНИЕ ==========
+@dp.callback_query(lambda c: c.data == "copy_key")
+async def copy_key(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    key = get_test_key(user_id)
+    await callback.answer(f"🔑 Ключ скопирован!\n\n{key}", show_alert=True)
+
+@dp.callback_query(lambda c: c.data == "copy_payment")
+async def copy_payment(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    cursor.execute("SELECT pending_payment FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    months = result[0] if result else 1
+    prices = {1: 100, 2: 180, 3: 250}
+    amount = prices.get(months, 100)
+    
+    text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
+    await callback.answer(f"💳 Реквизиты скопированы!\n\n{text}", show_alert=True)
+
+# ========== ПРОФИЛЬ С ФОТО ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
@@ -103,7 +120,19 @@ async def profile_command(message: types.Message):
         f"🔹 Username: @{username}\n\n"
         f"📅 Статус подписки: {status}"
     )
-    await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
+    
+    # Отправляем фото + текст
+    try:
+        with open("profile.jpg", "rb") as photo:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="profile.jpg"),
+                caption=profile_text,
+                parse_mode="Markdown",
+                reply_markup=reply_markup
+            )
+    except:
+        # Если фото нет — отправляем только текст
+        await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
 
 @dp.callback_query(lambda c: c.data == "extend")
 async def extend_subscription(callback: types.CallbackQuery):
@@ -111,7 +140,6 @@ async def extend_subscription(callback: types.CallbackQuery):
     await callback.answer()
 
 # ========== СТАРТ ==========
-
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -121,7 +149,7 @@ async def start_command(message: types.Message):
     cursor.execute("INSERT INTO users (user_id, username, first_name) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET username = ?, first_name = ?", (user_id, username, first_name, username, first_name))
     conn.commit()
     
-    text = "🚪 Добро пожаловать в UniGate!\n\nЭто тестовая версия бота.\nВсе функции работают.\n\n👇 Выбери действие:"
+    text = "🚪 Добро пожаловать в UniGate!\n\n👇 Выбери действие:"
     await message.answer(text, reply_markup=main_keyboard())
 
 # ========== ПОЛУЧИТЬ КЛЮЧ ==========
@@ -135,7 +163,7 @@ async def get_key(message: types.Message):
         end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
             connection_string = get_test_key(user_id)
-            await message.answer(f"🔑 **Твой тестовый VPN-ключ:**\n\n`{connection_string}`\n\n⚠️ **Это тестовый ключ**\n\n📱 **Инструкция:**\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»", parse_mode="Markdown", reply_markup=copy_keyboard(connection_string))
+            await message.answer(f"🔑 **Твой тестовый VPN-ключ:**\n\n`{connection_string}`\n\n📱 **Инструкция:**\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»", parse_mode="Markdown", reply_markup=copy_keyboard(connection_string))
             return
     
     await message.answer("❌ У тебя нет активной подписки.\n\nНажми «💳 Тарифы», чтобы оплатить доступ.")
@@ -143,20 +171,21 @@ async def get_key(message: types.Message):
 # ========== ТАРИФЫ ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
-    await message.answer("💰 **Наши тарифы:**\n\n• 1 месяц — 200₽\n• 3 месяца — 500₽\n• 6 месяцев — 900₽", parse_mode="Markdown", reply_markup=tariffs_keyboard())
+    text = "💰 **Наши тарифы:**\n\n• 1 месяц — 100₽\n• 2 месяца — 180₽\n• 3 месяца — 250₽"
+    await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
 @dp.callback_query(lambda c: c.data.startswith("tariff_"))
 async def select_tariff(callback: types.CallbackQuery):
     tariff = callback.data.split("_")[1]
-    prices = {"1": 200, "3": 500, "6": 900}
-    amount = prices.get(tariff, 200)
+    prices = {"1": 100, "2": 180, "3": 250}
+    amount = prices.get(tariff, 100)
     months = int(tariff)
     user_id = callback.from_user.id
     
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
     
-    text = f"💳 Оплата {months} месяц(ев) — {amount}₽**\n\n**Реквизиты для перевода:**\nКарта: `{CARD_NUMBER}`\nПолучатель: {CARD_HOLDER}\nСумма: {amount}₽\n**Комментарий: `{user_id}`"
+    text = f"💳 Оплата {months} месяц(ев) — {amount}₽**\n\n**Реквизиты:**\nКарта: `{CARD_NUMBER}`\nПолучатель: {CARD_HOLDER}\nСумма: {amount}₽\n**Комментарий: `{user_id}`"
     
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
     await callback.answer()
@@ -165,10 +194,11 @@ async def select_tariff(callback: types.CallbackQuery):
 async def payment_received(callback: types.CallbackQuery):
     months = int(callback.data.split("_")[1])
     user_id = callback.from_user.id
-    prices = {1: 200, 3: 500, 6: 900}
-    amount = prices.get(months, 200)
+    prices = {1: 100, 2: 180, 3: 250}
+    amount = prices.get(months, 100)
     
-    await bot.send_message(ADMIN_ID, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
+    await bot.
+    send_message(ADMIN_ID, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
     
     await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
     await callback.answer()
@@ -177,7 +207,7 @@ async def payment_received(callback: types.CallbackQuery):
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
     builder = InlineKeyboardBuilder()
-    builder.button(text="📩 Написать", url="https://t.me/unisupport")
+    builder.button(text="📩 Написать", url="https://t.me/UniGatesSupport")
     await message.answer("📞 По вопросам пиши сюда:", reply_markup=builder.as_markup())
 
 @dp.callback_query(lambda c: c.data == "back_to_menu")
@@ -207,7 +237,7 @@ async def activate_user(message: types.Message):
     
     connection_string = get_test_key(user_id)
     
-    await bot.send_message(user_id, f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n🔑 **Твой тестовый VPN-ключ:**\n`{connection_string}`\n\n📱 **Инструкция:**\n1. Нажми «📋 Скопировать ключ»\n2. Открой приложение **Happ**\n3. Нажми «+» → «Из буфера обмена»", parse_mode="Markdown", reply_markup=copy_keyboard(connection_string))
+    await bot.send_message(user_id, f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n🔑 **Твой VPN-ключ:**\n`{connection_string}`\n\n📱 **Инструкция:**\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»", parse_mode="Markdown", reply_markup=copy_keyboard(connection_string))
     
     await message.answer(f"✅ Подписка активирована для {user_id} на {months} месяц(ев)")
 
