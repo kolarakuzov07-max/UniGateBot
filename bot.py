@@ -8,12 +8,17 @@ import os
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
-ADMIN_IDS = [1446300344, 2051767977]  # СПИСОК АДМИНОВ
+ADMIN_IDS = [1446300344, 2051767977]  # СПИСОК ВСЕХ АДМИНОВ
 BOT_USERNAME = "UniGates_bot"
 
 # РЕКВИЗИТЫ ДЛЯ ОПЛАТЫ
 CARD_NUMBER = "2200 1523 0320 4112"
 CARD_HOLDER = "SAVELII MINKOV"
+
+# ССЫЛКИ НА СКАЧИВАНИЕ HAPP
+HAPP_ANDROID = "https://play.google.com/store/apps/details?id=app.happ.cloud"
+HAPP_IOS = "https://apps.apple.com/app/happ/id6474031842"
+HAPP_WINDOWS = "https://github.com/happ-android/happ/releases"
 
 # ========== ИНИЦИАЛИЗАЦИЯ ==========
 bot = Bot(token=BOT_TOKEN)
@@ -40,6 +45,7 @@ def main_keyboard():
     builder.button(text="🛡️ Получить ключ")
     builder.button(text="💳 Тарифы")
     builder.button(text="👤 Профиль")
+    builder.button(text="📱 Скачать Happ")
     builder.button(text="📞 Поддержка")
     builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)
@@ -71,6 +77,51 @@ def payment_keyboard(amount, months, user_id):
 def get_test_key(user_id):
     return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
 
+# ========== КНОПКА СКАЧАТЬ HAPP ==========
+@dp.message(lambda m: m.text == "📱 Скачать Happ")
+async def download_happ(message: types.Message):
+    text = (
+        "📱 **Скачать приложение Happ**\n\n"
+        "Happ — это клиент для подключения к VPN.\n\n"
+        "🔗 **После установки:**\n"
+        "Нажми на кнопку «🔗 Подключить подписку» ниже, чтобы получить инструкцию по импорту ключа.\n\n"
+        "⬇️ **Выбери свою платформу:**"
+    )
+    
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📱 Android", url=HAPP_ANDROID)
+    builder.button(text="📱 iOS (iPhone)", url=HAPP_IOS)
+    builder.button(text="💻 Windows", url=HAPP_WINDOWS)
+    builder.button(text="🔗 Как подключить подписку?", callback_data="how_to_connect")
+    builder.button(text="◀️ Назад", callback_data="back_to_menu")
+    builder.adjust(1)
+    
+    await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
+
+@dp.callback_query(lambda c: c.data == "how_to_connect")
+async def how_to_connect(callback: types.CallbackQuery):
+    text = (
+        "🔗 **Как подключить подписку в Happ**\n\n"
+        "1️⃣ Скачай и установи приложение **Happ**\n"
+        "2️⃣ Скопируй VPN-ключ (он приходит после оплаты)\n"
+        "3️⃣ Открой Happ → нажми на кнопку **«+»**\n"
+        "4️⃣ Выбери **«Из буфера обмена»**\n"
+        "5️⃣ Нажми на подключение\n\n"
+        "✅ Готово! Ты подключён к VPN.\n\n"
+        "📌 Если ключ не работает — напиши в поддержку @UniGatesSupport"
+    )
+    
+    builder = InlineKeyboardBuilder()
+    builder.button(text="◀️ Назад", callback_data="back_to_download")
+    
+    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=builder.as_markup())
+    await callback.answer()
+
+@dp.callback_query(lambda c: c.data == "back_to_download")
+async def back_to_download(callback: types.CallbackQuery):
+    await download_happ(callback.message)
+    await callback.answer()
+
 # ========== КОПИРОВАНИЕ ==========
 @dp.callback_query(lambda c: c.data == "copy_key")
 async def copy_key(callback: types.CallbackQuery):
@@ -90,7 +141,7 @@ async def copy_payment(callback: types.CallbackQuery):
     text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
     await callback.answer(f"💳 Реквизиты скопированы!\n\n{text}", show_alert=True)
 
-# ========== ПРОФИЛЬ С РЕФЕРАЛКАМИ ==========
+# ========== ПРОФИЛЬ ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
@@ -106,7 +157,7 @@ async def profile_command(message: types.Message):
             days_left = (end_date - datetime.now()).days
             status = f"✅ Активна (осталось {days_left} дн.)"
             builder = InlineKeyboardBuilder()
-           
+            builder.button(text="🔄 Продлить подписку", callback_data="extend")
             builder.button(text="◀️ В меню", callback_data="back_to_menu")
             builder.adjust(1)
             reply_markup = builder.as_markup()
@@ -128,7 +179,7 @@ async def profile_command(message: types.Message):
         f"📅 Статус подписки: {status}\n\n"
         f"👥 **Реферальная система:**\n"
         f"└ Приглашено друзей: **{referral_count}**\n"
-        f"└ Ваша ссылка: `{referral_link}`\n\n"
+        f"└ Ваша ссылка:\n`{referral_link}`\n\n"
         f"💡 **Как это работает:**\n"
         f"Пригласи друга по ссылке → он получит скидку, а ты бонус!"
     )
@@ -144,7 +195,7 @@ async def profile_command(message: types.Message):
     except:
         await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
 
-# ========== ОБРАБОТКА РЕФЕРАЛЬНОЙ ССЫЛКИ ==========
+# ========== СТАРТ ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -163,7 +214,8 @@ async def start_command(message: types.Message):
     existing = cursor.fetchone()
     
     if not existing:
-        cursor.execute("INSERT INTO users (user_id, username, first_name, referrer_id) VALUES (?, ?, ?, ?)", (user_id, username, first_name, referrer_id))
+        cursor.
+        execute("INSERT INTO users (user_id, username, first_name, referrer_id) VALUES (?, ?, ?, ?)", (user_id, username, first_name, referrer_id))
         if referrer_id and referrer_id != user_id:
             cursor.execute("UPDATE users SET referral_count = referral_count + 1 WHERE user_id = ?", (referrer_id,))
             await bot.send_message(referrer_id, f"🎉 По вашей ссылке зарегистрировался новый пользователь @{username}!")
@@ -200,8 +252,7 @@ async def get_key(message: types.Message):
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     text = "💰 **Наши тарифы:**\n\n• 1 месяц — 100₽\n• 2 месяца — 180₽\n• 3 месяца — 250₽"
-  
-    answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+    await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
 @dp.callback_query(lambda c: c.data.startswith("tariff_"))
 async def select_tariff(callback: types.CallbackQuery):
@@ -219,6 +270,7 @@ async def select_tariff(callback: types.CallbackQuery):
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
     await callback.answer()
 
+# ========== ОПЛАТА (ИСПРАВЛЕНО - УВЕДОМЛЕНИЯ ВСЕМ АДМИНАМ) ==========
 @dp.callback_query(lambda c: c.data.startswith("paid_"))
 async def payment_received(callback: types.CallbackQuery):
     months = int(callback.data.split("_")[1])
@@ -226,11 +278,27 @@ async def payment_received(callback: types.CallbackQuery):
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
     
-    # Отправляем уведомление ВСЕМ админам
+    # Отправляем уведомление ВСЕМ админам из списка ADMIN_IDS
     for admin_id in ADMIN_IDS:
-        await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
+        try:
+            await bot.send_message(
+                admin_id, 
+                f"💰 **НОВАЯ ОПЛАТА**\n\n"
+                f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
+                f"📆 Тариф: {months} месяц(ев)\n"
+                f"💵 Сумма: {amount}₽\n\n"
+                f"✅ После проверки введи:\n"
+                f"`/activate {user_id} {months}`", 
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            print(f"Не удалось отправить уведомление админу {admin_id}: {e}")
     
-    await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
+    await callback.message.edit_text(
+        "✅ **Заявка на оплату отправлена!**\n\n"
+        "Администраторы проверят перевод и активируют подписку.\n"
+        "Обычно это занимает до 15 минут."
+    )
     await callback.answer()
 
 # ========== ПОДДЕРЖКА ==========
@@ -248,7 +316,6 @@ async def back_to_menu(callback: types.CallbackQuery):
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
 async def activate_user(message: types.Message):
-    # Проверяем, что команду пишет админ из списка
     if message.from_user.id not in ADMIN_IDS:
         await message.answer("❌ Нет прав")
         return
