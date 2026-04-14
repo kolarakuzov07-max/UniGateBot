@@ -107,7 +107,7 @@ async def profile_command(message: types.Message):
             status = f"✅ Активна (осталось {days_left} дн.)"
             builder = InlineKeyboardBuilder()
             builder.button(text="🔄 Продлить подписку", callback_data="extend")
-          button(text="◀️ В меню", callback_data="back_to_menu")
+        
             builder.adjust(1)
             reply_markup = builder.as_markup()
         else:
