@@ -7,10 +7,10 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
 
 # ========== НАСТРОЙКИ ==========
-BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
-ADMIN_ID = 1446300344
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo")
+ADMIN_ID = 123456789  # ЗАМЕНИ НА СВОЙ ID (узнай у @userinfobot)
 
-# Тестовые реквизиты (можно заменить на свои)
+# Тестовые реквизиты
 CARD_NUMBER = "1234 5678 9012 3456"
 CARD_HOLDER = "IVAN IVANOV"
 
@@ -67,9 +67,7 @@ def payment_keyboard(amount, months, user_id):
     builder.adjust(1)
     return builder.as_markup()
 
-# ========== ТЕСТОВАЯ ФУНКЦИЯ КЛЮЧА ==========
 def get_test_key(user_id):
-    """Возвращает тестовый ключ (без реального сервера)"""
     return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
 
 # ========== ПРОФИЛЬ ==========
@@ -110,8 +108,7 @@ async def profile_command(message: types.Message):
     await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
 
 @dp.callback_query(lambda c: c.data == "extend")
-async def extend_subscription(callback: types.
-CallbackQuery):
+async def extend_subscription(callback: types.CallbackQuery):
     await callback.message.edit_text(
         "💰 **Выбери тариф для продления:**",
         reply_markup=tariffs_keyboard()
@@ -135,7 +132,7 @@ async def start_command(message: types.Message):
     text = (
         "🚪 Добро пожаловать в UniGate!\n\n"
         "Это тестовая версия бота.\n"
-        "Все функции работают, но ключ выдаётся тестовый.\n\n"
+        "Все функции работают.\n\n"
         "👇 Выбери действие:"
     )
     await message.answer(text, reply_markup=main_keyboard())
@@ -150,18 +147,15 @@ async def get_key(message: types.Message):
     if result and result[0]:
         end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
-            # Вместо реального сервера — тестовый ключ
             connection_string = get_test_key(user_id)
             
             await message.answer(
                 f"🔑 **Твой тестовый VPN-ключ:**\n\n"
                 f"`{connection_string}`\n\n"
-                f"⚠️ Это тестовый ключ (не работает в Happ).\n"
-                f"После подключения реального сервера ключи станут настоящими.\n\n"
-                f"📱 **Инструкция по импорту:**\n"
+                f"⚠️ **Это тестовый ключ**\n\n"
+                f"📱 **Инструкция:**\n"
                 f"1. Нажми «📋 Скопировать ключ»\n"
-                f"2. Открой Happ → «+» → «Из буфера обмена»\n"
-                f"3. Нажми подключиться",
+                f"2. Открой Happ → «+» → «Из буфера обмена»",
                 parse_mode="Markdown",
                 reply_markup=copy_keyboard(connection_string)
             )
@@ -169,8 +163,7 @@ async def get_key(message: types.Message):
     
     await message.answer(
         "❌ У тебя нет активной подписки.\n\n"
-        "Нажми «💳 Тарифы», чтобы оплатить доступ.\n\n"
-        "После оплаты администратор активирует подписку, и ты получишь ключ."
+        "Нажми «💳 Тарифы», чтобы оплатить доступ."
     )
 
 # ========== ТАРИФЫ ==========
@@ -206,8 +199,7 @@ async def select_tariff(callback: types.CallbackQuery):
         f"Карта: `{CARD_NUMBER}`\n"
         f"Получатель: {CARD_HOLDER}\n"
         f"Сумма: {amount}₽\n"
-        f"**Комментарий:** `{user_id}`\n\n"
-        f"📋 Нажми на кнопку ниже, чтобы скопировать реквизиты"
+        f"**Комментарий:** `{user_id}`"
     )
     
     await callback.message.edit_text(
@@ -227,7 +219,7 @@ async def payment_received(callback: types.CallbackQuery):
     await bot.send_message(
         ADMIN_ID,
         f"💰 **НОВАЯ ОПЛАТА**\n\n"
-f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
+        f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
         f"📆 Тариф: {months} месяц(ев)\n"
         f"💵 Сумма: {amount}₽\n\n"
         f"✅ После проверки введи:\n"
@@ -237,14 +229,13 @@ f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
     
     await callback.message.edit_text(
         "✅ **Заявка на оплату отправлена!**\n\n"
-        "Администратор проверит перевод и активирует подписку.\n\n"
-        "⚠️ В тестовом режиме ключ придёт сразу (но он тестовый).\n"
-        "В реальном режиме ключ будет настоящим и будет работать в Happ."
+        "Администратор проверит перевод и активирует подписку."
     )
     await callback.answer()
 
 # ========== ПОДДЕРЖКА ==========
-@dp.message(lambda m: m.text == "📞 Поддержка")
+@dp.message(lambda m: m.
+            text == "📞 Поддержка")
 async def support_command(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать", url="https://t.me/unisupport")
@@ -271,7 +262,6 @@ async def activate_user(message: types.Message):
     user_id = int(user_id)
     months = int(months)
     
-    # Активируем подписку в БД
     end_date = datetime.now() + timedelta(days=30 * months)
     cursor.execute("""
         INSERT INTO users (user_id, subscription_end, pending_payment) 
@@ -280,7 +270,6 @@ async def activate_user(message: types.Message):
     """, (user_id, end_date.isoformat(), end_date.isoformat()))
     conn.commit()
     
-    # Тестовый ключ
     connection_string = get_test_key(user_id)
     
     await bot.send_message(
@@ -288,18 +277,15 @@ async def activate_user(message: types.Message):
         f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n"
         f"🔑 **Твой тестовый VPN-ключ:**\n"
         f"`{connection_string}`\n\n"
-        f"⚠️ Это тестовый ключ (не работает в Happ).\n"
-        f"После подключения реального сервера ключи станут настоящими.\n\n"
         f"📱 **Инструкция:**\n"
         f"1. Нажми «📋 Скопировать ключ»\n"
         f"2. Открой приложение **Happ**\n"
-        f"3. Нажми «+» → «Из буфера обмена»\n"
-        f"4. Нажми подключиться",
+        f"3. Нажми «+» → «Из буфера обмена»",
         parse_mode="Markdown",
         reply_markup=copy_keyboard(connection_string)
     )
     
-    await message.answer(f"✅ Тестовая подписка активирована для {user_id} на {months} месяц(ев)")
+    await message.answer(f"✅ Подписка активирована для {user_id} на {months} месяц(ев)")
 
 # ========== ЗАПУСК ==========
 async def main():
