@@ -200,7 +200,7 @@ async def get_key(message: types.Message):
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     text = "💰 **Наши тарифы:**\n\n• 1 месяц — 100₽\n• 2 месяца — 180₽\n• 3 месяца — 250₽"
-    await message.
+  
     answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
 @dp.callback_query(lambda c: c.data.startswith("tariff_"))
