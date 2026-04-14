@@ -8,7 +8,7 @@ import os
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
-ADMIN_ID = 1446300344
+ADMIN_IDS = [1446300344, 2051767977]  # СПИСОК АДМИНОВ
 BOT_USERNAME = "UniGates_bot"
 
 # РЕКВИЗИТЫ ДЛЯ ОПЛАТЫ
@@ -106,8 +106,8 @@ async def profile_command(message: types.Message):
             days_left = (end_date - datetime.now()).days
             status = f"✅ Активна (осталось {days_left} дн.)"
             builder = InlineKeyboardBuilder()
-            builder.button(text="🔄 Продлить подписку", callback_data="extend")
-        
+           button(text="🔄 Продлить подписку", callback_data="extend")
+            builder.button(text="◀️ В меню", callback_data="back_to_menu")
             builder.adjust(1)
             reply_markup = builder.as_markup()
         else:
@@ -200,10 +200,10 @@ async def get_key(message: types.Message):
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     text = "💰 **Наши тарифы:**\n\n• 1 месяц — 100₽\n• 2 месяца — 180₽\n• 3 месяца — 250₽"
-    await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+    await message.
+answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
-@dp.callback_query(lambda c: c.data.
-                   startswith("tariff_"))
+@dp.callback_query(lambda c: c.data.startswith("tariff_"))
 async def select_tariff(callback: types.CallbackQuery):
     tariff = callback.data.split("_")[1]
     prices = {"1": 100, "2": 180, "3": 250}
@@ -226,7 +226,9 @@ async def payment_received(callback: types.CallbackQuery):
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
     
-    await bot.send_message(ADMIN_ID, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
+    # Отправляем уведомление ВСЕМ админам
+    for admin_id in ADMIN_IDS:
+        await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
     
     await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
     await callback.answer()
@@ -246,7 +248,8 @@ async def back_to_menu(callback: types.CallbackQuery):
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
 async def activate_user(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
+    # Проверяем, что команду пишет админ из списка
+    if message.from_user.id not in ADMIN_IDS:
         await message.answer("❌ Нет прав")
         return
     
