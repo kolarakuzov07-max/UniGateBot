@@ -1,119 +1,4 @@
-import asyncio
-import sqlite3
-from datetime import datetime, timedelta
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
-import os
-
-# ========== НАСТРОЙКИ ==========
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo")
-ADMIN_ID = 123456789  # ЗАМЕНИ НА СВОЙ ID (узнай у @userinfobot)
-
-# Тестовые реквизиты
-CARD_NUMBER = "1234 5678 9012 3456"
-CARD_HOLDER = "IVAN IVANOV"
-
-# ========== ИНИЦИАЛИЗАЦИЯ ==========
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-
-conn = sqlite3.connect("unigate.db")
-cursor = conn.cursor()
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    subscription_end TEXT,
-    pending_payment INTEGER DEFAULT 0,
-    username TEXT,
-    first_name TEXT
-)
-""")
-conn.commit()
-
-# ========== КЛАВИАТУРЫ ==========
-def main_keyboard():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="🛡️ Получить ключ")
-    builder.button(text="💳 Тарифы")
-    builder.button(text="👤 Профиль")
-    builder.button(text="📞 Поддержка")
-    builder.adjust(2)
-    return builder.as_markup(resize_keyboard=True)
-
-def tariffs_keyboard():
-    builder = InlineKeyboardBuilder()
-    builder.button(text="1 месяц — 200₽", callback_data="tariff_1")
-    builder.button(text="3 месяца — 500₽", callback_data="tariff_3")
-    builder.button(text="6 месяцев — 900₽", callback_data="tariff_6")
-    builder.button(text="◀️ Назад", callback_data="back_to_menu")
-    builder.adjust(1)
-    return builder.as_markup()
-
-def copy_keyboard(connection_string):
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📋 Скопировать ключ", copy_text=connection_string)
-    builder.button(text="◀️ В меню", callback_data="back_to_menu")
-    builder.adjust(1)
-    return builder.as_markup()
-
-def payment_keyboard(amount, months, user_id):
-    text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
-    
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📋 Скопировать реквизиты", copy_text=text)
-    builder.button(text="✅ Я оплатил", callback_data=f"paid_{months}")
-    builder.button(text="◀️ Назад", callback_data="back_to_menu")
-    builder.adjust(1)
-    return builder.as_markup()
-
-def get_test_key(user_id):
-    return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
-
-# ========== ПРОФИЛЬ ==========
-@dp.message(lambda m: m.text == "👤 Профиль")
-async def profile_command(message: types.Message):
-    user_id = message.from_user.id
-    username = message.from_user.username or "нет"
-    first_name = message.from_user.first_name or ""
-    
-    cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    
-    if result and result[0]:
-        end_date = datetime.fromisoformat(result[0])
-        if end_date > datetime.now():
-            days_left = (end_date - datetime.now()).days
-            status = f"✅ Активна (осталось {days_left} дн.)"
-            builder = InlineKeyboardBuilder()
-            builder.button(text="🔄 Продлить подписку", callback_data="extend")
-            builder.button(text="◀️ В меню", callback_data="back_to_menu")
-            builder.adjust(1)
-            reply_markup = builder.as_markup()
-        else:
-            status = "❌ Истекла"
-            reply_markup = None
-    else:
-        status = "❌ Нет активной подписки"
-        reply_markup = None
-    
-    profile_text = (
-        f"👤 **Ваш профиль UniGate**\n\n"
-        f"🆔 Telegram ID: `{user_id}`\n"
-        f"📝 Имя: {first_name}\n"
-        f"🔹 Username: @{username}\n\n"
-        f"📅 Статус подписки: {status}"
-    )
-    
-    await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
-
-@dp.callback_query(lambda c: c.data == "extend")
-async def extend_subscription(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "💰 **Выбери тариф для продления:**",
-        reply_markup=tariffs_keyboard()
-    )
-    await callback.answer()
+await callback.answer()
 
 # ========== СТАРТ ==========
 @dp.message(Command("start"))
@@ -234,9 +119,123 @@ async def payment_received(callback: types.CallbackQuery):
     await callback.answer()
 
 # ========== ПОДДЕРЖКА ==========
-@dp.message(lambda m: m.
-            text == "📞 Поддержка")
-async def support_command(message: types.Message):
+@dp.message(lambda m: m.text == "📞 Поддержка")
+import asyncio
+import sqlite3
+from datetime import datetime, timedelta
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
+import os
+
+# ========== НАСТРОЙКИ ==========
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo")
+ADMIN_ID = 1446300344  # Твой ID
+
+# Тестовые реквизиты
+CARD_NUMBER = "1234 5678 9012 3456"
+CARD_HOLDER = "IVAN IVANOV"
+
+# ========== ИНИЦИАЛИЗАЦИЯ ==========
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+conn = sqlite3.connect("unigate.db")
+cursor = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    subscription_end TEXT,
+    pending_payment INTEGER DEFAULT 0,
+    username TEXT,
+    first_name TEXT
+)
+""")
+conn.commit()
+
+# ========== КЛАВИАТУРЫ ==========
+def main_keyboard():
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="🛡️ Получить ключ")
+    builder.button(text="💳 Тарифы")
+    builder.button(text="👤 Профиль")
+    builder.button(text="📞 Поддержка")
+    builder.adjust(2)
+    return builder.as_markup(resize_keyboard=True)
+
+def tariffs_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="1 месяц — 200₽", callback_data="tariff_1")
+    builder.button(text="3 месяца — 500₽", callback_data="tariff_3")
+    builder.button(text="6 месяцев — 900₽", callback_data="tariff_6")
+    builder.button(text="◀️ Назад", callback_data="back_to_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def copy_keyboard(connection_string):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📋 Скопировать ключ", copy_text=connection_string)
+    builder.button(text="◀️ В меню", callback_data="back_to_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def payment_keyboard(amount, months, user_id):
+    text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
+    
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📋 Скопировать реквизиты", copy_text=text)
+    builder.button(text="✅ Я оплатил", callback_data=f"paid_{months}")
+    builder.button(text="◀️ Назад", callback_data="back_to_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def get_test_key(user_id):
+    return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
+
+# ========== ПРОФИЛЬ ==========
+@dp.message(lambda m: m.text == "👤 Профиль")
+async def profile_command(message: types.Message):
+    user_id = message.from_user.id
+    username = message.from_user.username or "нет"
+    first_name = message.from_user.first_name or ""
+    
+    cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    
+    if result and result[0]:
+        end_date = datetime.fromisoformat(result[0])
+        if end_date > datetime.now():
+            days_left = (end_date - datetime.now()).days
+            status = f"✅ Активна (осталось {days_left} дн.)"
+            builder = InlineKeyboardBuilder()
+            builder.button(text="🔄 Продлить подписку", callback_data="extend")
+            builder.button(text="◀️ В меню", callback_data="back_to_menu")
+            builder.adjust(1)
+            reply_markup = builder.as_markup()
+        else:
+            status = "❌ Истекла"
+            reply_markup = None
+    else:
+        status = "❌ Нет активной подписки"
+        reply_markup = None
+    
+    profile_text = (
+        f"👤 **Ваш профиль UniGate**\n\n"
+        f"🆔 Telegram ID: `{user_id}`\n"
+        f"📝 Имя: {first_name}\n"
+        f"🔹 Username: @{username}\n\n"
+        f"📅 Статус подписки: {status}"
+    )
+    
+    await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
+
+@dp.callback_query(lambda c: c.data == "extend")
+async def extend_subscription(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "💰 **Выбери тариф для продления:**",
+        reply_markup=tariffs_keyboard()
+    )
+    async def support_command(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать", url="https://t.me/unisupport")
     await message.answer("📞 По вопросам пиши сюда:", reply_markup=builder.as_markup())
