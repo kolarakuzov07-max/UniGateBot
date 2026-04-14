@@ -11,8 +11,9 @@ BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
 ADMIN_ID = 1446300344
 BOT_USERNAME = "UniGates_bot"
 
-CARD_NUMBER = "1234 5678 9012 3456"
-CARD_HOLDER = "IVAN IVANOV"
+# РЕКВИЗИТЫ ДЛЯ ОПЛАТЫ
+CARD_NUMBER = "2200 1523 0320 4112"
+CARD_HOLDER = "SAVELII MINKOV"
 
 # ========== ИНИЦИАЛИЗАЦИЯ ==========
 bot = Bot(token=BOT_TOKEN)
@@ -106,7 +107,7 @@ async def profile_command(message: types.Message):
             status = f"✅ Активна (осталось {days_left} дн.)"
             builder = InlineKeyboardBuilder()
             builder.button(text="🔄 Продлить подписку", callback_data="extend")
-          
+          button(text="◀️ В меню", callback_data="back_to_menu")
             builder.adjust(1)
             reply_markup = builder.as_markup()
         else:
@@ -225,7 +226,6 @@ async def payment_received(callback: types.CallbackQuery):
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
     
-    # ИСПРАВЛЕНО: добавил await bot.
     await bot.send_message(ADMIN_ID, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
     
     await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
