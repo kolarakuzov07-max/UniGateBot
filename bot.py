@@ -112,7 +112,7 @@ async def extend_subscription(callback: types.CallbackQuery):
 
 # ========== СТАРТ ==========
 
-message(Command("start"))
+@dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username
