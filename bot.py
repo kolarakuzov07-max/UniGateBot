@@ -106,7 +106,7 @@ async def profile_command(message: types.Message):
             days_left = (end_date - datetime.now()).days
             status = f"✅ Активна (осталось {days_left} дн.)"
             builder = InlineKeyboardBuilder()
-           button(text="🔄 Продлить подписку", callback_data="extend")
+          
             builder.button(text="◀️ В меню", callback_data="back_to_menu")
             builder.adjust(1)
             reply_markup = builder.as_markup()
