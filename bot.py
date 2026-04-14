@@ -106,7 +106,7 @@ async def profile_command(message: types.Message):
             days_left = (end_date - datetime.now()).days
             status = f"✅ Активна (осталось {days_left} дн.)"
             builder = InlineKeyboardBuilder()
-          
+           
             builder.button(text="◀️ В меню", callback_data="back_to_menu")
             builder.adjust(1)
             reply_markup = builder.as_markup()
@@ -201,7 +201,7 @@ async def get_key(message: types.Message):
 async def show_tariffs(message: types.Message):
     text = "💰 **Наши тарифы:**\n\n• 1 месяц — 100₽\n• 2 месяца — 180₽\n• 3 месяца — 250₽"
     await message.
-answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+    answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
 @dp.callback_query(lambda c: c.data.startswith("tariff_"))
 async def select_tariff(callback: types.CallbackQuery):
