@@ -201,8 +201,7 @@ async def start_command(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username
     first_name = message.from_user.first_name
-    
-    args = message.text.split()
+     args = message.text.split()
     referrer_id = None
     if len(args) > 1:
         try:
@@ -214,7 +213,7 @@ async def start_command(message: types.Message):
     existing = cursor.fetchone()
     
     if not existing:
-        cursor.
+     
         execute("INSERT INTO users (user_id, username, first_name, referrer_id) VALUES (?, ?, ?, ?)", (user_id, username, first_name, referrer_id))
         if referrer_id and referrer_id != user_id:
             cursor.execute("UPDATE users SET referral_count = referral_count + 1 WHERE user_id = ?", (referrer_id,))
