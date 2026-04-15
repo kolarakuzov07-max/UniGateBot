@@ -34,9 +34,18 @@ CREATE TABLE IF NOT EXISTS users (
 conn.commit()
 
 # ========== УДАЛЕНИЕ ВРЕМЕННЫХ СООБЩЕНИЙ ==========
+# Храним ID главного сообщения с меню (которое не удаляем)
+main_message_id = {}
+
+# Храним ID временных сообщений (которые удаляем)
 temp_messages = {}
 
+async def save_main_message(user_id, message_id):
+    """Сохраняет ID главного сообщения с меню (не удаляется)"""
+    main_message_id[user_id] = message_id
+
 async def delete_temp_messages(user_id, chat_id):
+    """Удаляет только временные сообщения бота (не трогает главное меню)"""
     if user_id in temp_messages:
         for msg_id in temp_messages[user_id]:
             try:
@@ -46,11 +55,12 @@ async def delete_temp_messages(user_id, chat_id):
         temp_messages[user_id] = []
 
 async def save_temp_message(user_id, message_id):
+    """Сохраняет ID временного сообщения"""
     if user_id not in temp_messages:
         temp_messages[user_id] = []
     temp_messages[user_id].append(message_id)
-    if len(temp_messages[user_id]) > 5:
-        temp_messages[user_id] = temp_messages[user_id][-5:]
+    if len(temp_messages[user_id]) > 10:
+        temp_messages[user_id] = temp_messages[user_id][-10:]
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
@@ -125,6 +135,7 @@ async def select_tariff(callback: types.CallbackQuery):
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
     
+    # Удаляем только временные сообщения
     await delete_temp_messages(user_id, chat_id)
     
     text = (
@@ -178,7 +189,15 @@ async def back_to_menu(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
+    # Удаляем временные сообщения
     await delete_temp_messages(user_id, chat_id)
+    
+    # Если есть сохранённое главное сообщение, удаляем его и создаём новое
+    if user_id in main_message_id:
+        try:
+            await bot.delete_message(chat_id, main_message_id[user_id])
+        except:
+            pass
     
     text = (
         "🚪 **Добро пожаловать в UniGate!**\n\n"
@@ -199,10 +218,10 @@ async def back_to_menu(callback: types.CallbackQuery):
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
-            await save_temp_message(user_id, msg.message_id)
+            await save_main_message(user_id, msg.message_id)
     except:
         msg = await callback.message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
-        await save_temp_message(user_id, msg.message_id)
+        await save_main_message(user_id, msg.message_id)
     
     await callback.answer()
 
@@ -272,7 +291,15 @@ async def start_command(message: types.Message):
     username = message.from_user.username
     first_name = message.from_user.first_name
     
+    # Удаляем временные сообщения
     await delete_temp_messages(user_id, chat_id)
+    
+    # Если есть сохранённое главное сообщение, удаляем его
+    if user_id in main_message_id:
+        try:
+            await bot.delete_message(chat_id, main_message_id[user_id])
+        except:
+            pass
     
     args = message.text.split()
     referrer_id = None
@@ -314,10 +341,10 @@ async def start_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
-            await save_temp_message(user_id, msg.message_id)
+            await save_main_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
-        await save_temp_message(user_id, msg.message_id)
+        await save_main_message(user_id, msg.message_id)
 
 # ========== ГЛАВНОЕ МЕНЮ ==========
 @dp.message(lambda m: m.text == "🏠 Главное меню")
