@@ -33,19 +33,44 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
-# ========== УДАЛЕНИЕ ВРЕМЕННЫХ СООБЩЕНИЙ ==========
-# Храним ID главного сообщения с меню (которое не удаляем)
+# ========== УДАЛЕНИЕ СООБЩЕНИЙ ==========
+# Храним ID главного сообщения с меню
 main_message_id = {}
-
-# Храним ID временных сообщений (которые удаляем)
+# Храним ID временных сообщений бота
 temp_messages = {}
+# Храним ID сообщений пользователя
+user_messages = {}
 
 async def save_main_message(user_id, message_id):
-    """Сохраняет ID главного сообщения с меню (не удаляется)"""
     main_message_id[user_id] = message_id
 
+async def save_temp_message(user_id, message_id):
+    if user_id not in temp_messages:
+        temp_messages[user_id] = []
+    temp_messages[user_id].append(message_id)
+    if len(temp_messages[user_id]) > 10:
+        temp_messages[user_id] = temp_messages[user_id][-10:]
+
+async def save_user_message(user_id, message_id):
+    """Сохраняет ID сообщения пользователя"""
+    if user_id not in user_messages:
+        user_messages[user_id] = []
+    user_messages[user_id].append(message_id)
+    if len(user_messages[user_id]) > 10:
+        user_messages[user_id] = user_messages[user_id][-10:]
+
+async def delete_user_messages(user_id, chat_id):
+    """Удаляет сообщения пользователя"""
+    if user_id in user_messages:
+        for msg_id in user_messages[user_id]:
+            try:
+                await bot.delete_message(chat_id, msg_id)
+            except:
+                pass
+        user_messages[user_id] = []
+
 async def delete_temp_messages(user_id, chat_id):
-    """Удаляет только временные сообщения бота (не трогает главное меню)"""
+    """Удаляет временные сообщения бота"""
     if user_id in temp_messages:
         for msg_id in temp_messages[user_id]:
             try:
@@ -54,13 +79,10 @@ async def delete_temp_messages(user_id, chat_id):
                 pass
         temp_messages[user_id] = []
 
-async def save_temp_message(user_id, message_id):
-    """Сохраняет ID временного сообщения"""
-    if user_id not in temp_messages:
-        temp_messages[user_id] = []
-    temp_messages[user_id].append(message_id)
-    if len(temp_messages[user_id]) > 10:
-        temp_messages[user_id] = temp_messages[user_id][-10:]
+async def delete_all_messages(user_id, chat_id):
+    """Удаляет и сообщения пользователя, и временные сообщения бота"""
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
@@ -127,6 +149,9 @@ async def select_tariff(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
+    # Сохраняем сообщение пользователя (нажатие на кнопку)
+    await save_user_message(user_id, callback.message.message_id)
+    
     tariff = callback.data.split("_")[1]
     prices = {"1": 100, "2": 180, "3": 250}
     amount = prices.get(tariff, 100)
@@ -135,7 +160,8 @@ async def select_tariff(callback: types.CallbackQuery):
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
     
-    # Удаляем только временные сообщения
+    # Удаляем сообщение пользователя и временные сообщения бота
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     text = (
@@ -160,6 +186,11 @@ async def payment_received(callback: types.CallbackQuery):
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
     
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, callback.message.message_id)
+    
+    # Удаляем сообщение пользователя и временные сообщения
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     for admin_id in ADMIN_IDS:
@@ -178,6 +209,8 @@ async def extend_subscription(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
+    await save_user_message(user_id, callback.message.message_id)
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     msg = await callback.message.answer("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
@@ -189,10 +222,11 @@ async def back_to_menu(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
-    # Удаляем временные сообщения
+    await save_user_message(user_id, callback.message.message_id)
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
-    # Если есть сохранённое главное сообщение, удаляем его и создаём новое
+    # Если есть сохранённое главное сообщение, удаляем его
     if user_id in main_message_id:
         try:
             await bot.delete_message(chat_id, main_message_id[user_id])
@@ -231,6 +265,11 @@ async def profile_command(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем сообщение пользователя и временные сообщения
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     username = message.from_user.username or "нет"
@@ -291,7 +330,11 @@ async def start_command(message: types.Message):
     username = message.from_user.username
     first_name = message.from_user.first_name
     
-    # Удаляем временные сообщения
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем все сообщения пользователя и временные сообщения бота
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     # Если есть сохранённое главное сообщение, удаляем его
@@ -357,6 +400,11 @@ async def get_key(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем сообщение пользователя и временные сообщения
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
@@ -390,6 +438,11 @@ async def show_tariffs(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем сообщение пользователя и временные сообщения
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     text = (
@@ -419,6 +472,11 @@ async def support_command(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем сообщение пользователя и временные сообщения
+    await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
     builder = InlineKeyboardBuilder()
