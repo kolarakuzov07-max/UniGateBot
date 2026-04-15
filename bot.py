@@ -147,7 +147,7 @@ async def profile_command(message: types.Message):
     except:
         await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
 
-# ========== СТАРТ (НОВОЕ ПРИВЕТСТВИЕ) ==========
+# ========== СТАРТ С ФОТО ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -175,7 +175,6 @@ async def start_command(message: types.Message):
         cursor.execute("UPDATE users SET username = ?, first_name = ? WHERE user_id = ?", (username, first_name, user_id))
         conn.commit()
     
-    # НОВОЕ ПРОДАЮЩЕЕ ПРИВЕТСТВИЕ
     text = (
         "🚪 **Добро пожаловать в UniGate!**\n\n"
         "Твой интернет — под контролем? **Хватит это терпеть!**\n\n"
@@ -183,15 +182,25 @@ async def start_command(message: types.Message):
         "Мы работаем там, где обычные VPN пасуют.\n\n"
         "✨ **Почему 500+ пользователей выбрали нас:**\n"
         "• 🚀 **Молниеносная скорость** — забудь про бесконечную загрузку\n"
-        "• 🔒 **Абсолютная приватность** — никаких логов, никто не узнает, что ты смотришь\n"
+        "• 🔒 **Абсолютная приватность** — никаких логов\n"
         "• 🌍 **Открытый мир** — YouTube, Instagram, TikTok, Telegram — всё работает\n"
         "• 📱 **Один клик** — установил Happ, вставил ключ и забыл\n"
-        "• 🛡️ **Режим «Глушилка»** — работаем даже в метро и на мероприятиях\n\n"
+        "• 🛡️ **Режим «Глушилка»** — работаем даже в метро\n\n"
         "🎁 **Специальное предложение:**\n"
         "Первый месяц — **всего 100₽**! Просто выбери тариф ниже.\n\n"
         "👇 **Выбери действие и верни себе свободу в интернете:**"
     )
-    await message.answer(text, reply_markup=main_keyboard())
+    
+    try:
+        with open("welcome.jpg", "rb") as photo:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="welcome.jpg"),
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=main_keyboard()
+            )
+    except:
+        await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
 
 # ========== ГЛАВНОЕ МЕНЮ (КНОПКА) ==========
 @dp.message(lambda m: m.text == "🏠 Главное меню")
@@ -224,7 +233,7 @@ async def get_key(message: types.Message):
         parse_mode="Markdown"
     )
 
-# ========== ТАРИФЫ ==========
+# ========== ТАРИФЫ С ФОТО ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     text = (
@@ -265,7 +274,7 @@ async def select_tariff(callback: types.CallbackQuery):
         f"📌 Получатель: `{CARD_HOLDER}`\n"
         f"📌 Сумма: {amount}₽\n"
         f"📌 Комментарий: `{user_id}`\n\n"
-        f"✅ **После перевода** нажми кнопку «✅ Я оплатил» и пришли чек в поддержку.\n"
+        f"✅ **После перевода** нажми кнопку «✅ Я оплатил».\n"
         f"Администратор проверит оплату и активирует подписку в течение 15 минут."
     )
     
@@ -290,7 +299,7 @@ async def payment_received(callback: types.CallbackQuery):
     )
     await callback.answer()
 
-# ========== ПОДДЕРЖКА ==========
+# ========== ПОДДЕРЖКА С ФОТО ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
     builder = InlineKeyboardBuilder()
@@ -301,8 +310,7 @@ async def support_command(message: types.Message):
     text = (
         "📞 **Служба поддержки UniGate**\n\n"
         "Возникли проблемы с подключением? Вопросы по оплате?\n\n"
-        "Напиши нам — ответим в течение 15 минут!\n\n"
-        "Также ты можешь ознакомиться с [инструкцией по подключению](https://telegra.ph/UniGate-Instrukciya-04-14)."
+        "Напиши нам — ответим в течение 15 минут!"
     )
     
     try:
