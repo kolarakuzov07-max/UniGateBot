@@ -33,6 +33,27 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
+# ========== УДАЛЕНИЕ СООБЩЕНИЙ ==========
+user_messages = {}
+
+async def delete_previous_messages(user_id, chat_id):
+    """Удаляет предыдущие сообщения бота для пользователя"""
+    if user_id in user_messages:
+        for msg_id in user_messages[user_id]:
+            try:
+                await bot.delete_message(chat_id, msg_id)
+            except:
+                pass
+        user_messages[user_id] = []
+
+async def save_message(user_id, message_id):
+    """Сохраняет ID сообщения бота для последующего удаления"""
+    if user_id not in user_messages:
+        user_messages[user_id] = []
+    user_messages[user_id].append(message_id)
+    if len(user_messages[user_id]) > 10:
+        user_messages[user_id] = user_messages[user_id][-10:]
+
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
     builder = ReplyKeyboardBuilder()
@@ -70,7 +91,7 @@ def payment_keyboard(amount, months, user_id):
 def get_test_key(user_id):
     return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
 
-# ========== ОБРАБОТЧИКИ INLINE КНОПОК ==========
+# ========== ОБРАБОТЧИКИ ==========
 @dp.callback_query(lambda c: c.data == "copy_key")
 async def copy_key(callback: types.CallbackQuery):
     user_id = callback.from_user.id
@@ -93,14 +114,17 @@ async def copy_payment(callback: types.CallbackQuery):
     text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
     await callback.answer(f"💳 Реквизиты скопированы!\n\n{text}", show_alert=True)
 
-# ОБРАБОТЧИК ТАРИФОВ
 @dp.callback_query(lambda c: c.data and c.data.startswith("tariff_"))
 async def select_tariff(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    
+    await delete_previous_messages(user_id, chat_id)
+    
     tariff = callback.data.split("_")[1]
     prices = {"1": 100, "2": 180, "3": 250}
     amount = prices.get(tariff, 100)
     months = int(tariff)
-    user_id = callback.from_user.id
     
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
@@ -112,39 +136,45 @@ async def select_tariff(callback: types.CallbackQuery):
         f"📌 Получатель: `{CARD_HOLDER}`\n"
         f"📌 Сумма: {amount}₽\n"
         f"📌 Комментарий: `{user_id}`\n\n"
-        f"✅ **После перевода** нажми кнопку «✅ Я оплатил».\n"
-        f"Администратор проверит оплату и активирует подписку."
+        f"✅ **После перевода** нажми кнопку «✅ Я оплатил»."
     )
     
-    await callback.message.answer(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
+    msg = await callback.message.answer(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
+    await save_message(user_id, msg.message_id)
     await callback.answer()
 
-# ОБРАБОТЧИК ОПЛАТЫ
 @dp.callback_query(lambda c: c.data and c.data.startswith("paid_"))
 async def payment_received(callback: types.CallbackQuery):
     months = int(callback.data.split("_")[1])
     user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
+    
+    await delete_previous_messages(user_id, chat_id)
     
     for admin_id in ADMIN_IDS:
         await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
     
-    await callback.message.answer(
+    msg = await callback.message.answer(
         "✅ **Заявка на оплату отправлена!**\n\n"
         "Администратор проверит перевод в ближайшее время.\n"
-        "Обычно это занимает до 15 минут.\n\n"
-        "Как только подписка активируется — ключ придёт сюда."
+        "Обычно это занимает до 15 минут."
     )
+    await save_message(user_id, msg.message_id)
     await callback.answer()
 
-# ОБРАБОТЧИК ПРОДЛЕНИЯ
 @dp.callback_query(lambda c: c.data == "extend")
 async def extend_subscription(callback: types.CallbackQuery):
-    await callback.message.answer("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    
+    await delete_previous_messages(user_id, chat_id)
+    
+    msg = await callback.message.answer("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
+    await save_message(user_id, msg.message_id)
     await callback.answer()
 
-# ОБРАБОТЧИК НАЗАД В МЕНЮ
 @dp.callback_query(lambda c: c.data == "back_to_menu")
 async def back_to_menu(callback: types.CallbackQuery):
     await start_command(callback.message)
@@ -154,6 +184,10 @@ async def back_to_menu(callback: types.CallbackQuery):
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await delete_previous_messages(user_id, chat_id)
+    
     username = message.from_user.username or "нет"
     first_name = message.from_user.first_name or ""
     
@@ -188,28 +222,31 @@ async def profile_command(message: types.Message):
         f"📅 **Статус подписки:** {status}\n\n"
         f"👥 **Реферальная система:**\n"
         f"└ Приглашено друзей: **{referral_count}**\n"
-        f"└ Ваша ссылка: `{referral_link}`\n\n"
-        f"💡 **Как это работает:**\n"
-        f"Пригласи друга по ссылке → он получит скидку, а ты бонус!"
+        f"└ Ваша ссылка: `{referral_link}`"
     )
     
     try:
         with open("profile.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="profile.jpg"),
                 caption=profile_text,
                 parse_mode="Markdown",
                 reply_markup=reply_markup
             )
+            await save_message(user_id, msg.message_id)
     except:
-        await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
+        msg = await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
+        await save_message(user_id, msg.message_id)
 
-# ========== СТАРТ С ФОТО ==========
+# ========== СТАРТ ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
+    chat_id = message.chat.id
     username = message.from_user.username
     first_name = message.from_user.first_name
+    
+    await delete_previous_messages(user_id, chat_id)
     
     args = message.text.split()
     referrer_id = None
@@ -234,8 +271,6 @@ async def start_command(message: types.Message):
     
     text = (
         "🚪 **Добро пожаловать в UniGate!**\n\n"
-        "Твой интернет — под контролем? **Хватит это терпеть!**\n\n"
-        "UniGate — это **мгновенный доступ** к любому сайту, где бы ты ни был.\n\n"
         "✨ **Почему выбирают нас:**\n"
         "• 🚀 **Молниеносная скорость**\n"
         "• 🔒 **Абсолютная приватность**\n"
@@ -247,14 +282,16 @@ async def start_command(message: types.Message):
     
     try:
         with open("welcome.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="welcome.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
+            await save_message(user_id, msg.message_id)
     except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
+        msg = await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
+        await save_message(user_id, msg.message_id)
 
 # ========== ГЛАВНОЕ МЕНЮ ==========
 @dp.message(lambda m: m.text == "🏠 Главное меню")
@@ -265,6 +302,10 @@ async def main_menu(message: types.Message):
 @dp.message(lambda m: m.text == "🛡️ Получить ключ")
 async def get_key(message: types.Message):
     user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await delete_previous_messages(user_id, chat_id)
+    
     cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
     
@@ -272,7 +313,7 @@ async def get_key(message: types.Message):
         end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
             connection_string = get_test_key(user_id)
-            await message.answer(
+            msg = await message.answer(
                 f"🔑 **Твой VPN-ключ:**\n\n`{connection_string}`\n\n"
                 f"📱 **Инструкция:**\n"
                 f"1. Нажми «📋 Скопировать ключ»\n"
@@ -280,17 +321,24 @@ async def get_key(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=copy_keyboard(connection_string)
             )
+            await save_message(user_id, msg.message_id)
             return
     
-    await message.answer(
+    msg = await message.answer(
         "❌ **У тебя нет активной подписки.**\n\n"
         "Нажми «💳 Тарифы» и выбери подходящий план.",
         parse_mode="Markdown"
     )
+    await save_message(user_id, msg.message_id)
 
-# ========== ТАРИФЫ С ФОТО ==========
+# ========== ТАРИФЫ ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await delete_previous_messages(user_id, chat_id)
+    
     text = (
         "💰 **Наши тарифы:**\n\n"
         "⭐ **1 месяц** — 100₽\n"
@@ -301,18 +349,25 @@ async def show_tariffs(message: types.Message):
     
     try:
         with open("tariffs.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="tariffs.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=tariffs_keyboard()
             )
+            await save_message(user_id, msg.message_id)
     except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+        msg = await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+        await save_message(user_id, msg.message_id)
 
-# ========== ПОДДЕРЖКА С ФОТО ==========
+# ========== ПОДДЕРЖКА ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await delete_previous_messages(user_id, chat_id)
+    
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать в поддержку", url="https://t.me/UniGatesSupport")
     builder.button(text="🏠 Главное меню", callback_data="back_to_menu")
@@ -322,14 +377,16 @@ async def support_command(message: types.Message):
     
     try:
         with open("support.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="support.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=builder.as_markup()
             )
+            await save_message(user_id, msg.message_id)
     except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
+        msg = await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
+        await save_message(user_id, msg.message_id)
 
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
