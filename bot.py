@@ -119,8 +119,6 @@ async def select_tariff(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
-    await delete_previous_messages(user_id, chat_id)
-    
     tariff = callback.data.split("_")[1]
     prices = {"1": 100, "2": 180, "3": 250}
     amount = prices.get(tariff, 100)
@@ -128,6 +126,9 @@ async def select_tariff(callback: types.CallbackQuery):
     
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
+    
+    # Удаляем старое сообщение (с кнопками тарифов)
+    await delete_previous_messages(user_id, chat_id)
     
     text = (
         f"💳 **Оплата {months} месяц(ев) — {amount}₽**\n\n"
@@ -151,6 +152,7 @@ async def payment_received(callback: types.CallbackQuery):
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
     
+    # Удаляем предыдущее сообщение бота
     await delete_previous_messages(user_id, chat_id)
     
     for admin_id in ADMIN_IDS:
@@ -177,7 +179,36 @@ async def extend_subscription(callback: types.CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "back_to_menu")
 async def back_to_menu(callback: types.CallbackQuery):
-    await start_command(callback.message)
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    
+    await delete_previous_messages(user_id, chat_id)
+    
+    # Отправляем новое главное меню
+    text = (
+        "🚪 **Добро пожаловать в UniGate!**\n\n"
+        "✨ **Почему выбирают нас:**\n"
+        "• 🚀 **Молниеносная скорость**\n"
+        "• 🔒 **Абсолютная приватность**\n"
+        "• 🌍 **Доступ к любым сайтам**\n"
+        "• 📱 **Один клик** для подключения\n\n"
+        "🎁 **Первый месяц — всего 100₽!**\n\n"
+        "👇 **Выбери действие:**"
+    )
+    
+    try:
+        with open("welcome.jpg", "rb") as photo:
+            msg = await callback.message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="welcome.jpg"),
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=main_keyboard()
+            )
+            await save_message(user_id, msg.message_id)
+    except:
+        msg = await callback.message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
+        await save_message(user_id, msg.message_id)
+    
     await callback.answer()
 
 # ========== ПРОФИЛЬ ==========
