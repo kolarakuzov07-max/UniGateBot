@@ -34,10 +34,9 @@ CREATE TABLE IF NOT EXISTS users (
 conn.commit()
 
 # ========== УДАЛЕНИЕ ВРЕМЕННЫХ СООБЩЕНИЙ ==========
-temp_messages = {}  # {user_id: [message_id, message_id, ...]}
+temp_messages = {}
 
 async def delete_temp_messages(user_id, chat_id):
-    """Удаляет только временные сообщения бота (не трогает Reply-клавиатуру)"""
     if user_id in temp_messages:
         for msg_id in temp_messages[user_id]:
             try:
@@ -47,11 +46,9 @@ async def delete_temp_messages(user_id, chat_id):
         temp_messages[user_id] = []
 
 async def save_temp_message(user_id, message_id):
-    """Сохраняет ID временного сообщения"""
     if user_id not in temp_messages:
         temp_messages[user_id] = []
     temp_messages[user_id].append(message_id)
-    # Оставляем только последние 5 сообщений
     if len(temp_messages[user_id]) > 5:
         temp_messages[user_id] = temp_messages[user_id][-5:]
 
@@ -128,7 +125,6 @@ async def select_tariff(callback: types.CallbackQuery):
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
     
-    # Удаляем только временные сообщения (не трогаем кнопки меню)
     await delete_temp_messages(user_id, chat_id)
     
     text = (
@@ -153,7 +149,6 @@ async def payment_received(callback: types.CallbackQuery):
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
     
-    # Удаляем только временные сообщения
     await delete_temp_messages(user_id, chat_id)
     
     for admin_id in ADMIN_IDS:
@@ -183,10 +178,8 @@ async def back_to_menu(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
-    # Удаляем временные сообщения
     await delete_temp_messages(user_id, chat_id)
     
-    # Отправляем новое сообщение с меню (Reply-кнопки уже есть на месте)
     text = (
         "🚪 **Добро пожаловать в UniGate!**\n\n"
         "✨ **Почему выбирают нас:**\n"
