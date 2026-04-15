@@ -33,33 +33,34 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
-# ========== УДАЛЕНИЕ СООБЩЕНИЙ ==========
-user_messages = {}
+# ========== УДАЛЕНИЕ ВРЕМЕННЫХ СООБЩЕНИЙ ==========
+temp_messages = {}  # {user_id: [message_id, message_id, ...]}
 
-async def delete_previous_messages(user_id, chat_id):
-    """Удаляет предыдущие сообщения бота для пользователя"""
-    if user_id in user_messages:
-        for msg_id in user_messages[user_id]:
+async def delete_temp_messages(user_id, chat_id):
+    """Удаляет только временные сообщения бота (не трогает Reply-клавиатуру)"""
+    if user_id in temp_messages:
+        for msg_id in temp_messages[user_id]:
             try:
                 await bot.delete_message(chat_id, msg_id)
             except:
                 pass
-        user_messages[user_id] = []
+        temp_messages[user_id] = []
 
-async def save_message(user_id, message_id):
-    """Сохраняет ID сообщения бота для последующего удаления"""
-    if user_id not in user_messages:
-        user_messages[user_id] = []
-    user_messages[user_id].append(message_id)
-    if len(user_messages[user_id]) > 10:
-        user_messages[user_id] = user_messages[user_id][-10:]
+async def save_temp_message(user_id, message_id):
+    """Сохраняет ID временного сообщения"""
+    if user_id not in temp_messages:
+        temp_messages[user_id] = []
+    temp_messages[user_id].append(message_id)
+    # Оставляем только последние 5 сообщений
+    if len(temp_messages[user_id]) > 5:
+        temp_messages[user_id] = temp_messages[user_id][-5:]
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
     builder = ReplyKeyboardBuilder()
     builder.button(text="🛡️ Получить ключ")
     builder.button(text="💳 Тарифы")
-    builder.button(text="👤 Профиль")
+   builder.button(text="👤 Профиль")
     builder.button(text="📞 Поддержка")
     builder.button(text="🏠 Главное меню")
     builder.adjust(2)
@@ -127,8 +128,8 @@ async def select_tariff(callback: types.CallbackQuery):
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
     
-    # Удаляем старое сообщение (с кнопками тарифов)
-    await delete_previous_messages(user_id, chat_id)
+    # Удаляем только временные сообщения (не трогаем кнопки меню)
+    await delete_temp_messages(user_id, chat_id)
     
     text = (
         f"💳 **Оплата {months} месяц(ев) — {amount}₽**\n\n"
@@ -141,7 +142,7 @@ async def select_tariff(callback: types.CallbackQuery):
     )
     
     msg = await callback.message.answer(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
-    await save_message(user_id, msg.message_id)
+    await save_temp_message(user_id, msg.message_id)
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("paid_"))
@@ -152,8 +153,8 @@ async def payment_received(callback: types.CallbackQuery):
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
     
-    # Удаляем предыдущее сообщение бота
-    await delete_previous_messages(user_id, chat_id)
+    # Удаляем только временные сообщения
+    await delete_temp_messages(user_id, chat_id)
     
     for admin_id in ADMIN_IDS:
         await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
@@ -163,7 +164,7 @@ async def payment_received(callback: types.CallbackQuery):
         "Администратор проверит перевод в ближайшее время.\n"
         "Обычно это занимает до 15 минут."
     )
-    await save_message(user_id, msg.message_id)
+    await save_temp_message(user_id, msg.message_id)
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data == "extend")
@@ -171,10 +172,10 @@ async def extend_subscription(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
-    await delete_previous_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     msg = await callback.message.answer("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
-    await save_message(user_id, msg.message_id)
+    await save_temp_message(user_id, msg.message_id)
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data == "back_to_menu")
@@ -182,9 +183,10 @@ async def back_to_menu(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
-    await delete_previous_messages(user_id, chat_id)
+    # Удаляем временные сообщения
+    await delete_temp_messages(user_id, chat_id)
     
-    # Отправляем новое главное меню
+    # Отправляем новое сообщение с меню (Reply-кнопки уже есть на месте)
     text = (
         "🚪 **Добро пожаловать в UniGate!**\n\n"
         "✨ **Почему выбирают нас:**\n"
@@ -204,10 +206,10 @@ async def back_to_menu(callback: types.CallbackQuery):
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
-            await save_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await callback.message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
-        await save_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
     
     await callback.answer()
 
@@ -217,7 +219,7 @@ async def profile_command(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_previous_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     username = message.from_user.username or "нет"
     first_name = message.from_user.first_name or ""
@@ -264,10 +266,10 @@ async def profile_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=reply_markup
             )
-            await save_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
-        await save_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
 
 # ========== СТАРТ ==========
 @dp.message(Command("start"))
@@ -277,7 +279,7 @@ async def start_command(message: types.Message):
     username = message.from_user.username
     first_name = message.from_user.first_name
     
-    await delete_previous_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     args = message.text.split()
     referrer_id = None
@@ -319,10 +321,10 @@ async def start_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
-            await save_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
-        await save_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
 
 # ========== ГЛАВНОЕ МЕНЮ ==========
 @dp.message(lambda m: m.text == "🏠 Главное меню")
@@ -335,7 +337,7 @@ async def get_key(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_previous_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
@@ -352,7 +354,7 @@ async def get_key(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=copy_keyboard(connection_string)
             )
-            await save_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
             return
     
     msg = await message.answer(
@@ -360,7 +362,7 @@ async def get_key(message: types.Message):
         "Нажми «💳 Тарифы» и выбери подходящий план.",
         parse_mode="Markdown"
     )
-    await save_message(user_id, msg.message_id)
+    await save_temp_message(user_id, msg.message_id)
 
 # ========== ТАРИФЫ ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
@@ -368,7 +370,7 @@ async def show_tariffs(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_previous_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     text = (
         "💰 **Наши тарифы:**\n\n"
@@ -386,10 +388,10 @@ async def show_tariffs(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=tariffs_keyboard()
             )
-            await save_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
-        await save_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
 
 # ========== ПОДДЕРЖКА ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
@@ -397,7 +399,7 @@ async def support_command(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_previous_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать в поддержку", url="https://t.me/UniGatesSupport")
@@ -414,10 +416,10 @@ async def support_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=builder.as_markup()
             )
-            await save_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
-        await save_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
 
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
