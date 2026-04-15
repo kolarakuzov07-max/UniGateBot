@@ -70,7 +70,7 @@ def payment_keyboard(amount, months, user_id):
 def get_test_key(user_id):
     return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
 
-# ========== КОПИРОВАНИЕ ==========
+# ========== ОБРАБОТЧИКИ INLINE КНОПОК ==========
 @dp.callback_query(lambda c: c.data == "copy_key")
 async def copy_key(callback: types.CallbackQuery):
     user_id = callback.from_user.id
@@ -92,6 +92,63 @@ async def copy_payment(callback: types.CallbackQuery):
     
     text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
     await callback.answer(f"💳 Реквизиты скопированы!\n\n{text}", show_alert=True)
+
+# ОБРАБОТЧИК ТАРИФОВ (ГЛАВНЫЙ)
+@dp.callback_query(lambda c: c.data and c.data.startswith("tariff_"))
+async def select_tariff(callback: types.CallbackQuery):
+    tariff = callback.data.split("_")[1]
+    prices = {"1": 100, "2": 180, "3": 250}
+    amount = prices.get(tariff, 100)
+    months = int(tariff)
+    user_id = callback.from_user.id
+    
+    cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
+    conn.commit()
+    
+    text = (
+        f"💳 **Оплата {months} месяц(ев) — {amount}₽**\n\n"
+        f"**Реквизиты для перевода:**\n"
+        f"📌 Карта: `{CARD_NUMBER}`\n"
+        f"📌 Получатель: `{CARD_HOLDER}`\n"
+        f"📌 Сумма: {amount}₽\n"
+        f"📌 Комментарий: `{user_id}`\n\n"
+        f"✅ **После перевода** нажми кнопку «✅ Я оплатил».\n"
+        f"Администратор проверит оплату и активирует подписку в течение 15 минут."
+    )
+    
+    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
+    await callback.answer()
+
+# ОБРАБОТЧИК ОПЛАТЫ
+@dp.callback_query(lambda c: c.data and c.data.startswith("paid_"))
+async def payment_received(callback: types.CallbackQuery):
+    months = int(callback.data.split("_")[1])
+    user_id = callback.from_user.id
+    prices = {1: 100, 2: 180, 3: 250}
+    amount = prices.get(months, 100)
+    
+    for admin_id in ADMIN_IDS:
+        await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
+    
+    await callback.message.edit_text(
+        "✅ **Заявка на оплату отправлена!**\n\n"
+        "Администратор проверит перевод в ближайшее время.\n"
+        "Обычно это занимает до 15 минут.\n\n"
+        "Как только подписка активируется — ключ придёт сюда."
+    )
+    await callback.answer()
+
+# ОБРАБОТЧИК ПРОДЛЕНИЯ
+@dp.callback_query(lambda c: c.data == "extend")
+async def extend_subscription(callback: types.CallbackQuery):
+    await callback.message.edit_text("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
+    await callback.answer()
+
+# ОБРАБОТЧИК НАЗАД В МЕНЮ
+@dp.callback_query(lambda c: c.data == "back_to_menu")
+async def back_to_menu(callback: types.CallbackQuery):
+    await start_command(callback.message)
+    await callback.answer()
 
 # ========== ПРОФИЛЬ ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
@@ -178,17 +235,14 @@ async def start_command(message: types.Message):
     text = (
         "🚪 **Добро пожаловать в UniGate!**\n\n"
         "Твой интернет — под контролем? **Хватит это терпеть!**\n\n"
-        "UniGate — это **мгновенный доступ** к любому сайту, где бы ты ни был. "
-        "Мы работаем там, где обычные VPN пасуют.\n\n"
-        "✨ **Почему 500+ пользователей выбрали нас:**\n"
-        "• 🚀 **Молниеносная скорость** — забудь про бесконечную загрузку\n"
-        "• 🔒 **Абсолютная приватность** — никаких логов\n"
-        "• 🌍 **Открытый мир** — YouTube, Instagram, TikTok, Telegram — всё работает\n"
-        "• 📱 **Один клик** — установил Happ, вставил ключ и забыл\n"
-        "• 🛡️ **Режим «Глушилка»** — работаем даже в метро\n\n"
-        "🎁 **Специальное предложение:**\n"
-        "Первый месяц — **всего 100₽**! Просто выбери тариф ниже.\n\n"
-        "👇 **Выбери действие и верни себе свободу в интернете:**"
+        "UniGate — это **мгновенный доступ** к любому сайту, где бы ты ни был.\n\n"
+        "✨ **Почему выбирают нас:**\n"
+        "• 🚀 **Молниеносная скорость**\n"
+        "• 🔒 **Абсолютная приватность**\n"
+        "• 🌍 **Доступ к любым сайтам**\n"
+        "• 📱 **Один клик** для подключения\n\n"
+        "🎁 **Первый месяц — всего 100₽!**\n\n"
+        "👇 **Выбери действие:**"
     )
     
     try:
@@ -202,15 +256,10 @@ async def start_command(message: types.Message):
     except:
         await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
 
-# ========== ГЛАВНОЕ МЕНЮ (КНОПКА) ==========
+# ========== ГЛАВНОЕ МЕНЮ ==========
 @dp.message(lambda m: m.text == "🏠 Главное меню")
 async def main_menu(message: types.Message):
     await start_command(message)
-
-@dp.callback_query(lambda c: c.data == "extend")
-async def extend_subscription(callback: types.CallbackQuery):
-    await callback.message.edit_text("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
-    await callback.answer()
 
 # ========== ПОЛУЧИТЬ КЛЮЧ ==========
 @dp.message(lambda m: m.text == "🛡️ Получить ключ")
@@ -223,13 +272,19 @@ async def get_key(message: types.Message):
         end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
             connection_string = get_test_key(user_id)
-            await message.answer(f"🔑 **Твой тестовый VPN-ключ:**\n\n`{connection_string}`\n\n📱 **Инструкция:**\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»", parse_mode="Markdown", reply_markup=copy_keyboard(connection_string))
+            await message.answer(
+                f"🔑 **Твой VPN-ключ:**\n\n`{connection_string}`\n\n"
+                f"📱 **Инструкция:**\n"
+                f"1. Нажми «📋 Скопировать ключ»\n"
+                f"2. Открой Happ → «+» → «Из буфера обмена»",
+                parse_mode="Markdown",
+                reply_markup=copy_keyboard(connection_string)
+            )
             return
     
     await message.answer(
         "❌ **У тебя нет активной подписки.**\n\n"
-        "Нажми «💳 Тарифы» и выбери подходящий план. "
-        "Первый месяц всего за 100₽ — это доступ ко всему миру без границ!",
+        "Нажми «💳 Тарифы» и выбери подходящий план.",
         parse_mode="Markdown"
     )
 
@@ -239,9 +294,8 @@ async def show_tariffs(message: types.Message):
     text = (
         "💰 **Наши тарифы:**\n\n"
         "⭐ **1 месяц** — 100₽\n"
-        "🔥 **2 месяца** — 180₽ (экономия 20₽)\n"
-        "💎 **3 месяца** — 250₽ (экономия 50₽)\n\n"
-        "🎁 **Бонус:** Приведи друга по своей реферальной ссылке — получи скидку 10% на следующий месяц!\n\n"
+        "🔥 **2 месяца** — 180₽\n"
+        "💎 **3 месяца** — 250₽\n\n"
         "👇 **Выбери подходящий тариф:**"
     )
     
@@ -256,49 +310,6 @@ async def show_tariffs(message: types.Message):
     except:
         await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
-@dp.callback_query(lambda c: c.data.startswith("tariff_"))
-async def select_tariff(callback: types.CallbackQuery):
-    tariff = callback.data.split("_")[1]
-    prices = {"1": 100, "2": 180, "3": 250}
-    amount = prices.get(tariff, 100)
-    months = int(tariff)
-    user_id = callback.from_user.id
-    
-    cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
-    conn.commit()
-    
-    text = (
-        f"💳 **Оплата {months} месяц(ев) — {amount}₽**\n\n"
-        f"**Реквизиты для перевода:**\n"
-        f"📌 Карта: `{CARD_NUMBER}`\n"
-        f"📌 Получатель: `{CARD_HOLDER}`\n"
-        f"📌 Сумма: {amount}₽\n"
-        f"📌 Комментарий: `{user_id}`\n\n"
-        f"✅ **После перевода** нажми кнопку «✅ Я оплатил».\n"
-        f"Администратор проверит оплату и активирует подписку в течение 15 минут."
-    )
-    
-    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
-    await callback.answer()
-
-@dp.callback_query(lambda c: c.data.startswith("paid_"))
-async def payment_received(callback: types.CallbackQuery):
-    months = int(callback.data.split("_")[1])
-    user_id = callback.from_user.id
-    prices = {1: 100, 2: 180, 3: 250}
-    amount = prices.get(months, 100)
-    
-    for admin_id in ADMIN_IDS:
-        await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
-    
-    await callback.message.edit_text(
-        "✅ **Заявка на оплату отправлена!**\n\n"
-        "Администратор проверит перевод в ближайшее время.\n"
-        "Обычно это занимает до 15 минут.\n\n"
-        "Как только подписка активируется — ключ придёт сюда."
-    )
-    await callback.answer()
-
 # ========== ПОДДЕРЖКА С ФОТО ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
@@ -307,11 +318,7 @@ async def support_command(message: types.Message):
     builder.button(text="🏠 Главное меню", callback_data="back_to_menu")
     builder.adjust(1)
     
-    text = (
-        "📞 **Служба поддержки UniGate**\n\n"
-        "Возникли проблемы с подключением? Вопросы по оплате?\n\n"
-        "Напиши нам — ответим в течение 15 минут!"
-    )
+    text = "📞 **Служба поддержки UniGate**\n\nВозникли проблемы? Напиши нам!"
     
     try:
         with open("support.jpg", "rb") as photo:
@@ -323,11 +330,6 @@ async def support_command(message: types.Message):
             )
     except:
         await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
-
-@dp.callback_query(lambda c: c.data == "back_to_menu")
-async def back_to_menu(callback: types.CallbackQuery):
-    await start_command(callback.message)
-    await callback.answer()
 
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
@@ -351,7 +353,16 @@ async def activate_user(message: types.Message):
     
     connection_string = get_test_key(user_id)
     
-    await bot.send_message(user_id, f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n🔑 **Твой VPN-ключ:**\n`{connection_string}`\n\n📱 **Инструкция:**\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»\n3. Нажми подключиться и наслаждайся свободным интернетом!", parse_mode="Markdown", reply_markup=copy_keyboard(connection_string))
+    await bot.send_message(
+        user_id,
+        f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n"
+        f"🔑 **Твой VPN-ключ:**\n`{connection_string}`\n\n"
+        f"📱 **Инструкция:**\n"
+        f"1. Нажми «📋 Скопировать ключ»\n"
+        f"2. Открой Happ → «+» → «Из буфера обмена»",
+        parse_mode="Markdown",
+        reply_markup=copy_keyboard(connection_string)
+    )
     
     await message.answer(f"✅ Подписка активирована для {user_id} на {months} месяц(ев)")
 
