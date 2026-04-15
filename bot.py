@@ -93,7 +93,7 @@ async def copy_payment(callback: types.CallbackQuery):
     text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
     await callback.answer(f"💳 Реквизиты скопированы!\n\n{text}", show_alert=True)
 
-# ОБРАБОТЧИК ТАРИФОВ (ГЛАВНЫЙ)
+# ОБРАБОТЧИК ТАРИФОВ
 @dp.callback_query(lambda c: c.data and c.data.startswith("tariff_"))
 async def select_tariff(callback: types.CallbackQuery):
     tariff = callback.data.split("_")[1]
@@ -113,10 +113,10 @@ async def select_tariff(callback: types.CallbackQuery):
         f"📌 Сумма: {amount}₽\n"
         f"📌 Комментарий: `{user_id}`\n\n"
         f"✅ **После перевода** нажми кнопку «✅ Я оплатил».\n"
-        f"Администратор проверит оплату и активирует подписку в течение 15 минут."
+        f"Администратор проверит оплату и активирует подписку."
     )
     
-    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
+    await callback.message.answer(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
     await callback.answer()
 
 # ОБРАБОТЧИК ОПЛАТЫ
@@ -130,7 +130,7 @@ async def payment_received(callback: types.CallbackQuery):
     for admin_id in ADMIN_IDS:
         await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
     
-    await callback.message.edit_text(
+    await callback.message.answer(
         "✅ **Заявка на оплату отправлена!**\n\n"
         "Администратор проверит перевод в ближайшее время.\n"
         "Обычно это занимает до 15 минут.\n\n"
@@ -141,7 +141,7 @@ async def payment_received(callback: types.CallbackQuery):
 # ОБРАБОТЧИК ПРОДЛЕНИЯ
 @dp.callback_query(lambda c: c.data == "extend")
 async def extend_subscription(callback: types.CallbackQuery):
-    await callback.message.edit_text("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
+    await callback.message.answer("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
     await callback.answer()
 
 # ОБРАБОТЧИК НАЗАД В МЕНЮ
