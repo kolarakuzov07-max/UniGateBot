@@ -60,7 +60,7 @@ def main_keyboard():
     builder = ReplyKeyboardBuilder()
     builder.button(text="🛡️ Получить ключ")
     builder.button(text="💳 Тарифы")
-   builder.button(text="👤 Профиль")
+    builder.button(text="👤 Профиль")
     builder.button(text="📞 Поддержка")
     builder.button(text="🏠 Главное меню")
     builder.adjust(2)
