@@ -201,40 +201,22 @@ async def get_key(message: types.Message):
     
     await message.answer("❌ У тебя нет активной подписки.\n\nНажми «💳 Тарифы», чтобы оплатить доступ.")
 
-# ========== ТАРИФЫ ==========
+# ========== ТАРИФЫ С ФОТО ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     text = "💰 **Наши тарифы:**\n\n• 1 месяц — 100₽\n• 2 месяца — 180₽\n• 3 месяца — 250₽"
-    await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
-
-@dp.callback_query(lambda c: c.data.startswith("tariff_"))
-async def select_tariff(callback: types.CallbackQuery):
-    tariff = callback.data.split("_")[1]
-    prices = {"1": 100, "2": 180, "3": 250}
-    amount = prices.get(tariff, 100)
-    months = int(tariff)
-    user_id = callback.from_user.id
     
-    cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
-    conn.commit()
-    
-    text = f"💳 Оплата {months} месяц(ев) — {amount}₽**\n\n**Реквизиты:**\nКарта: `{CARD_NUMBER}`\nПолучатель: {CARD_HOLDER}\nСумма: {amount}₽\n**Комментарий: `{user_id}`"
-    
-    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
-    await callback.answer()
-
-@dp.callback_query(lambda c: c.data.startswith("paid_"))
-async def payment_received(callback: types.CallbackQuery):
-    months = int(callback.data.split("_")[1])
-    user_id = callback.from_user.id
-    prices = {1: 100, 2: 180, 3: 250}
-    amount = prices.get(months, 100)
-    
-    for admin_id in ADMIN_IDS:
-        await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
-    
-    await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
-    await callback.answer()
+    try:
+        with open("tariffs.jpg", "rb") as photo:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="tariffs.jpg"),
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=tariffs_keyboard()
+            )
+    except:
+        # Если фото нет — отправляем только текст
+        await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
 # ========== ПОДДЕРЖКА ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
