@@ -217,7 +217,6 @@ async def profile_command(message: types.Message):
     result = cursor.fetchone()
     
     if result and result[0]:
-       
         fromisoformat(result[0])
         if end_date > datetime.now():
             days_left = (end_date - datetime.now()).days
