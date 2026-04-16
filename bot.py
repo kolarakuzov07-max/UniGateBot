@@ -18,9 +18,9 @@ CARD_NUMBER = "2200 1523 0320 4112"
 CARD_HOLDER = "SAVELII MINKOV"
 
 # ========== НАСТРОЙКИ 3X-UI ==========
-XUI_HOST = "http://89.125.199.10:54321"
+XUI_HOST = "http://89.125.199.10:18184"  # <--- ПОРТ ИСПРАВЛЕН
 XUI_USERNAME = "jS0JFHvlsd"
-XUI_PASSWORD = "a6qSCo055u"  # ЗАМЕНИ НА СВОЙ ПАРОЛЬ!
+XUI_PASSWORD = "a6qSCo055u"
 INBOUND_ID = 1
 SERVER_IP = "89.125.199.10"
 
