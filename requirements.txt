@@ -1,4 +1,3 @@
 aiogram==3.11.0
-requests
-py3xui
 asyncssh
+requests
