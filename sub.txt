@@ -1,3 +1,4 @@
+#%FRAGMENT length=1-10, interval=5-20, packets=tlshello
 https://89.125.27.104:2096/sub/v2wrgdb3el9c0sn6
 https://89.125.27.104:2096/sub/6sawjbee38gmxbek
 https://89.125.27.104:2096/sub/1sajjl5u4855wizl
