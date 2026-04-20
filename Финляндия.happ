@@ -1,0 +1,125 @@
+{
+  "dns" : {
+    "queryStrategy" : "UseIPv4",
+    "servers" : [
+      "8.8.8.8",
+      "9.9.9.9"
+    ],
+    "tag" : "dns-in"
+  },
+  "inbounds" : [
+    {
+      "listen" : "127.0.0.1",
+      "port" : 10808,
+      "protocol" : "socks",
+      "settings" : {
+        "auth" : "noauth",
+        "udp" : true
+      },
+      "sniffing" : {
+        "destOverride" : [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled" : true,
+        "routeOnly" : false
+      },
+      "tag" : "socks"
+    },
+    {
+      "listen" : "127.0.0.1",
+      "port" : 10809,
+      "protocol" : "http",
+      "settings" : {
+        "allowTransparent" : false
+      },
+      "sniffing" : {
+        "destOverride" : [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled" : true,
+        "routeOnly" : false
+      },
+      "tag" : "http"
+    }
+  ],
+  "log" : {
+    "access" : "\/private\/var\/mobile\/Containers\/Shared\/AppGroup\/1508299E-C816-4B25-B311-DA170975760D\/Library\/Application Support\/Xray\/logs\/access.log",
+    "dnsLog" : true,
+    "error" : "\/private\/var\/mobile\/Containers\/Shared\/AppGroup\/1508299E-C816-4B25-B311-DA170975760D\/Library\/Application Support\/Xray\/logs\/connectionLogs\/2026-04-20_00-57-28.log",
+    "loglevel" : "Warning"
+  },
+  "meta" : {
+    "serverDescription" : "NOSOK"
+  },
+  "outbounds" : [
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "88999.nosok-top.com",
+            "port" : 443,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "xtls-rprx-vision",
+                "id" : "f5364482-e6d5-412a-b878-14bba9dc7c0c"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "network" : "tcp",
+        "realitySettings" : {
+          "fingerprint" : "random",
+          "publicKey" : "v6rib0-2FxBd1MnBxdylbIRIhvXywSj56QEtCkaEuBo",
+          "serverName" : "ads.x5.ru",
+          "shortId" : "27e53bbcab7593d7",
+          "spiderX" : "\/"
+        },
+        "security" : "reality",
+        "tcpSettings" : {
+
+        }
+      },
+      "tag" : "proxy"
+    },
+    {
+      "protocol" : "freedom",
+      "tag" : "direct"
+    },
+    {
+      "protocol" : "blackhole",
+      "tag" : "block"
+    }
+  ],
+  "remarks" : "🇪🇺 5-3. LTE | Все операторы",
+  "routing" : {
+    "domainStrategy" : "IPIfNonMatch",
+    "rules" : [
+      {
+        "domain" : [
+          "domain:mtalk.google.com",
+          "domain:push.apple.com",
+          "domain:api.push.apple.com",
+          "domain:push-apple.com.akadns.net",
+          "domain:*-courier.push.apple.com"
+        ],
+        "outboundTag" : "direct",
+        "type" : "field"
+      },
+      {
+        "ip" : [
+          "17.0.0.0\/8"
+        ],
+        "outboundTag" : "direct",
+        "type" : "field"
+      }
+    ]
+  }
+}
