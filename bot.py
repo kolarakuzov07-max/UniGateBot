@@ -5,9 +5,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
-import uuid
-
-from py3xui import Api, Client
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
@@ -17,16 +14,8 @@ BOT_USERNAME = "UniGates_bot"
 CARD_NUMBER = "2200 1523 0320 4112"
 CARD_HOLDER = "SAVELII MINKOV"
 
-# ========== НАСТРОЙКИ 3X-UI ==========
-XUI_HOST = "https://89.125.199.10:18184"  # <--- ПОРТ ИСПРАВЛЕН
-XUI_USERNAME = "jS0JFHvlsd"
-XUI_PASSWORD = "a6qSCo055u"
-INBOUND_ID = 1
-SERVER_IP = "89.125.199.10"
-
-# Подключаемся к API панели
-api = Api(XUI_HOST, XUI_USERNAME, XUI_PASSWORD)
-api.login()
+# Ссылка на подписку
+SUBSCRIPTION_URL = "https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/main/Финляндия.happ"
 
 # ========== ИНИЦИАЛИЗАЦИЯ ==========
 bot = Bot(token=BOT_TOKEN)
@@ -46,6 +35,50 @@ CREATE TABLE IF NOT EXISTS users (
 )
 """)
 conn.commit()
+
+# ========== УДАЛЕНИЕ СООБЩЕНИЙ ==========
+main_message_id = {}
+temp_messages = {}
+user_messages = {}
+
+async def save_main_message(user_id, message_id):
+    main_message_id[user_id] = message_id
+
+async def save_temp_message(user_id, message_id):
+    if user_id not in temp_messages:
+        temp_messages[user_id] = []
+    temp_messages[user_id].append(message_id)
+    if len(temp_messages[user_id]) > 10:
+        temp_messages[user_id] = temp_messages[user_id][-10:]
+
+async def save_user_message(user_id, message_id):
+    if user_id not in user_messages:
+        user_messages[user_id] = []
+    user_messages[user_id].append(message_id)
+    if len(user_messages[user_id]) > 10:
+        user_messages[user_id] = user_messages[user_id][-10:]
+
+async def delete_user_messages(user_id, chat_id):
+    if user_id in user_messages:
+        for msg_id in user_messages[user_id]:
+            try:
+                await bot.delete_message(chat_id, msg_id)
+            except:
+                pass
+        user_messages[user_id] = []
+
+async def delete_temp_messages(user_id, chat_id):
+    if user_id in temp_messages:
+        for msg_id in temp_messages[user_id]:
+            try:
+                await bot.delete_message(chat_id, msg_id)
+            except:
+                pass
+        temp_messages[user_id] = []
+
+async def delete_all_messages(user_id, chat_id):
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
@@ -81,62 +114,15 @@ def payment_keyboard(amount, months, user_id):
     builder.adjust(1)
     return builder.as_markup()
 
-# ========== РАБОТА С 3X-UI API ==========
-async def create_vpn_key(user_id, days=30):
-    """Создаёт клиента в 3X-UI и возвращает vless:// ссылку"""
-    email = f"user_{user_id}"
-    
-    # Проверяем, есть ли уже такой клиент
-    existing = api.client.get_by_email(email)
-    if existing:
-        # Обновляем дату окончания
-        existing.expiry_time = int((datetime.now() + timedelta(days=days)).timestamp() * 1000)
-        api.client.update(existing.id, existing)
-        return get_client_link(existing)
-    
-    # Создаём нового клиента
-    new_client = Client(
-        id=str(uuid.uuid4()),
-        email=email,
-        enable=True,
-        expiry_time=int((datetime.now() + timedelta(days=days)).timestamp() * 1000)
-    )
-    
-    api.client.add(INBOUND_ID, new_client)
-    
-    # Получаем созданного клиента
-    client = api.client.get_by_email(email)
-    return get_client_link(client)
-
-def get_client_link(client):
-    """Формирует vless:// ссылку из данных клиента"""
-    inbound = api.inbound.get(INBOUND_ID)
-    
-    # Получаем параметры из inbound
-    port = inbound.port
-    stream_settings = inbound.stream_settings
-    reality_settings = stream_settings.get("realitySettings", {})
-    public_key = reality_settings.get("publicKey", "")
-    sni = reality_settings.get("serverNames", ["www.microsoft.com"])[0]
-    short_id = reality_settings.get("shortIds", ["e83ba78a69"])[0]
-    
-    # Формируем ссылку
-    link = f"vless://{client.id}@{SERVER_IP}:{port}?type=tcp&security=reality&pbk={public_key}&fp=chrome&sni={sni}&sid={short_id}&flow=xtls-rprx-vision#UniGates"
-    
-    return link
+def get_test_key(user_id):
+    return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
 
 # ========== ОБРАБОТЧИКИ ==========
 @dp.callback_query(lambda c: c.data == "copy_key")
 async def copy_key(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    # Получаем ключ пользователя из БД или создаём новый
-    cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    if result and result[0]:
-        key = await create_vpn_key(user_id, 30)
-        await callback.answer(f"🔑 Ключ скопирован!\n\n{key}", show_alert=True)
-    else:
-        await callback.answer("❌ У вас нет активной подписки", show_alert=True)
+    key = get_test_key(user_id)
+    await callback.answer(f"🔑 Ключ скопирован!\n\n{key}", show_alert=True)
 
 @dp.callback_query(lambda c: c.data == "copy_payment")
 async def copy_payment(callback: types.CallbackQuery):
@@ -159,6 +145,8 @@ async def select_tariff(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
+    await save_user_message(user_id, callback.message.message_id)
+    
     tariff = callback.data.split("_")[1]
     prices = {"1": 100, "2": 180, "3": 250}
     amount = prices.get(tariff, 100)
@@ -167,6 +155,9 @@ async def select_tariff(callback: types.CallbackQuery):
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
     
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
+    
     text = (
         f"💳 **Оплата {months} месяц(ев) — {amount}₽**\n\n"
         f"**Реквизиты для перевода:**\n"
@@ -174,42 +165,100 @@ async def select_tariff(callback: types.CallbackQuery):
         f"📌 Получатель: `{CARD_HOLDER}`\n"
         f"📌 Сумма: {amount}₽\n"
         f"📌 Комментарий: `{user_id}`\n\n"
-        f"✅ После перевода нажми кнопку «✅ Я оплатил»."
+        f"✅ **После перевода** нажми кнопку «✅ Я оплатил»."
     )
     
-    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
+    msg = await callback.message.answer(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
+    await save_temp_message(user_id, msg.message_id)
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("paid_"))
 async def payment_received(callback: types.CallbackQuery):
     months = int(callback.data.split("_")[1])
     user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
     prices = {1: 100, 2: 180, 3: 250}
     amount = prices.get(months, 100)
+    
+    await save_user_message(user_id, callback.message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     for admin_id in ADMIN_IDS:
         await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
     
-    await callback.message.edit_text(
+    msg = await callback.message.answer(
         "✅ **Заявка на оплату отправлена!**\n\n"
-        "Администратор проверит перевод и активирует подписку."
+        "Администратор проверит перевод в ближайшее время.\n"
+        "Обычно это занимает до 15 минут."
     )
+    await save_temp_message(user_id, msg.message_id)
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data == "extend")
 async def extend_subscription(callback: types.CallbackQuery):
-    await callback.message.edit_text("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    
+    await save_user_message(user_id, callback.message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
+    
+    msg = await callback.message.answer("💰 **Выбери тариф для продления:**", reply_markup=tariffs_keyboard())
+    await save_temp_message(user_id, msg.message_id)
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data == "back_to_menu")
 async def back_to_menu(callback: types.CallbackQuery):
-    await start_command(callback.message)
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    
+    await save_user_message(user_id, callback.message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
+    
+    if user_id in main_message_id:
+        try:
+            await bot.delete_message(chat_id, main_message_id[user_id])
+        except:
+            pass
+    
+    text = (
+        "🚪 **Добро пожаловать в UniGate!**\n\n"
+        "✨ **Почему выбирают нас:**\n"
+        "• 🚀 **Молниеносная скорость**\n"
+        "• 🔒 **Абсолютная приватность**\n"
+        "• 🌍 **Доступ к любым сайтам**\n"
+        "• 📱 **Один клик** для подключения\n\n"
+        "🎁 **Первый месяц — всего 100₽!**\n\n"
+        "👇 **Выбери действие:**"
+    )
+    
+    try:
+        with open("welcome.jpg", "rb") as photo:
+            msg = await callback.message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="welcome.jpg"),
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=main_keyboard()
+            )
+            await save_main_message(user_id, msg.message_id)
+    except:
+        msg = await callback.message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
+        await save_main_message(user_id, msg.message_id)
+    
     await callback.answer()
 
 # ========== ПРОФИЛЬ ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await save_user_message(user_id, message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
+    
     username = message.from_user.username or "нет"
     first_name = message.from_user.first_name or ""
     
@@ -217,7 +266,7 @@ async def profile_command(message: types.Message):
     result = cursor.fetchone()
     
     if result and result[0]:
-        fromisoformat(result[0])
+        end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
             days_left = (end_date - datetime.now()).days
             status = f"✅ Активна (осталось {days_left} дн.)"
@@ -238,10 +287,10 @@ async def profile_command(message: types.Message):
     
     profile_text = (
         f"👤 **Ваш профиль UniGate**\n\n"
-        f"🆔 Telegram ID: `{user_id}`\n"
-        f"📝 Имя: {first_name}\n"
-        f"🔹 Username: @{username}\n\n"
-        f"📅 Статус подписки: {status}\n\n"
+        f"🆔 **Telegram ID:** `{user_id}`\n"
+        f"📝 **Имя:** {first_name}\n"
+        f"🔹 **Username:** @{username}\n\n"
+        f"📅 **Статус подписки:** {status}\n\n"
         f"👥 **Реферальная система:**\n"
         f"└ Приглашено друзей: **{referral_count}**\n"
         f"└ Ваша ссылка: `{referral_link}`"
@@ -249,21 +298,34 @@ async def profile_command(message: types.Message):
     
     try:
         with open("profile.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="profile.jpg"),
                 caption=profile_text,
                 parse_mode="Markdown",
                 reply_markup=reply_markup
             )
+            await save_temp_message(user_id, msg.message_id)
     except:
-        await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
+        msg = await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
+        await save_temp_message(user_id, msg.message_id)
 
 # ========== СТАРТ ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
+    chat_id = message.chat.id
     username = message.from_user.username
     first_name = message.from_user.first_name
+    
+    await save_user_message(user_id, message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
+    
+    if user_id in main_message_id:
+        try:
+            await bot.delete_message(chat_id, main_message_id[user_id])
+        except:
+            pass
     
     args = message.text.split()
     referrer_id = None
@@ -292,21 +354,23 @@ async def start_command(message: types.Message):
         "• 🚀 **Молниеносная скорость**\n"
         "• 🔒 **Абсолютная приватность**\n"
         "• 🌍 **Доступ к любым сайтам**\n"
-        "• 📱 Один клик для подключения\n\n"
+        "• 📱 **Один клик** для подключения\n\n"
         "🎁 **Первый месяц — всего 100₽!**\n\n"
         "👇 **Выбери действие:**"
     )
     
     try:
         with open("welcome.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="welcome.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
+            await save_main_message(user_id, msg.message_id)
     except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
+        msg = await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
+        await save_main_message(user_id, msg.message_id)
 
 # ========== ГЛАВНОЕ МЕНЮ ==========
 @dp.message(lambda m: m.text == "🏠 Главное меню")
@@ -317,6 +381,11 @@ async def main_menu(message: types.Message):
 @dp.message(lambda m: m.text == "🛡️ Получить ключ")
 async def get_key(message: types.Message):
     user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await save_user_message(user_id, message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     cursor.execute("SELECT subscription_end FROM users WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
@@ -324,53 +393,67 @@ async def get_key(message: types.Message):
     if result and result[0]:
         end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
-            # Автоматически создаём ключ через API
-            try:
-                vless_link = await create_vpn_key(user_id)
-                await message.answer(
-                    f"🔑 **Твой VPN-ключ:**\n\n"
-                    f"`{vless_link}`\n\n"
-                    f"📱 **Инструкция:**\n"
-                    f"1. Нажми «📋 Скопировать ключ»\n"
-                    f"2. Открой Happ → «+» → «Из буфера обмена»",
-                    parse_mode="Markdown",
-                    reply_markup=copy_keyboard(vless_link)
-                )
-            except Exception as e:
-                await message.answer(f"❌ Ошибка при создании ключа: {e}")
+            await message.answer(
+                f"🔑 **Твоя подписка активна!**\n\n"
+                f"📱 **Ссылка для подключения:**\n"
+                f"`{SUBSCRIPTION_URL}`\n\n"
+                f"📌 **Инструкция:**\n"
+                f"1. Скопируй ссылку\n"
+                f"2. Открой Happ → «+» → «Импорт по URL»\n"
+                f"3. Вставь ссылку и нажми «Готово»\n"
+                f"4. Выбери сервер и подключись",
+                parse_mode="Markdown"
+            )
             return
     
-    await message.answer(
+    msg = await message.answer(
         "❌ **У тебя нет активной подписки.**\n\n"
         "Нажми «💳 Тарифы» и выбери подходящий план.",
         parse_mode="Markdown"
     )
+    await save_temp_message(user_id, msg.message_id)
 
 # ========== ТАРИФЫ ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await save_user_message(user_id, message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
+    
     text = (
         "💰 **Наши тарифы:**\n\n"
-        "⭐ 1 месяц — 100₽\n"
-        "🔥 2 месяца — 180₽\n"
-        "💎 3 месяца — 250₽\n\n"
+        "⭐ **1 месяц** — 100₽\n"
+        "🔥 **2 месяца** — 180₽\n"
+        "💎 **3 месяца** — 250₽\n\n"
         "👇 **Выбери подходящий тариф:**"
     )
     
     try:
         with open("tariffs.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="tariffs.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=tariffs_keyboard()
             )
+            await save_temp_message(user_id, msg.message_id)
     except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+        msg = await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+        await save_temp_message(user_id, msg.message_id)
 
 # ========== ПОДДЕРЖКА ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    await save_user_message(user_id, message.message_id)
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
+    
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать в поддержку", url="https://t.me/UniGatesSupport")
     builder.button(text="🏠 Главное меню", callback_data="back_to_menu")
@@ -380,16 +463,18 @@ async def support_command(message: types.Message):
     
     try:
         with open("support.jpg", "rb") as photo:
-            await message.answer_photo(
+            msg = await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="support.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=builder.as_markup()
             )
+            await save_temp_message(user_id, msg.message_id)
     except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
+        msg = await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
+        await save_temp_message(user_id, msg.message_id)
 
-# ========== АДМИН-КОМАНДА ==========
+# ========== АДМИН-КОМАНДЫ ==========
 @dp.message(Command("activate"))
 async def activate_user(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
@@ -405,33 +490,54 @@ async def activate_user(message: types.Message):
     user_id = int(user_id)
     months = int(months)
     
-    # Активируем подписку в БД
     end_date = datetime.now() + timedelta(days=30 * months)
-    cursor.execute("""
-        INSERT INTO users (user_id, subscription_end, pending_payment) 
-        VALUES (?, ?, 0) 
-        ON CONFLICT(user_id) DO UPDATE SET subscription_end = ?, pending_payment = 0
-    """, (user_id, end_date.isoformat(), end_date.isoformat()))
+    cursor.execute("INSERT INTO users (user_id, subscription_end, pending_payment) VALUES (?, ?, 0) ON CONFLICT(user_id) DO UPDATE SET subscription_end = ?, pending_payment = 0", (user_id, end_date.isoformat(), end_date.isoformat()))
     conn.commit()
     
-    # Автоматически создаём ключ через API
+    await bot.send_message(
+        user_id,
+        f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n"
+        f"📱 **Твоя подписка:**\n"
+        f"`{SUBSCRIPTION_URL}`\n\n"
+        f"📌 **Инструкция:**\n"
+        f"1. Скопируй ссылку\n"
+        f"2. Открой Happ → «+» → «Импорт по URL»\n"
+        f"3. Вставь ссылку и нажми «Готово»\n"
+        f"4. Выбери сервер и подключись",
+        parse_mode="Markdown"
+    )
+    
+    await message.answer(f"✅ Подписка активирована для {user_id} на {months} месяц(ев)")
+
+@dp.message(Command("give_sub"))
+async def give_subscription(message: types.Message):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Нет прав")
+        return
+    
+    parts = message.text.split()
+    if len(parts) < 2:
+        await message.answer("❌ Формат: /give_sub user_id")
+        return
+    
     try:
-        vless_link = await create_vpn_key(user_id, days=30 * months)
-        
-        await bot.send_message(
-            user_id,
-            f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n"
-            f"🔑 **Твой VPN-ключ:**\n"
-            f"`{vless_link}`\n\n"
-            f"📱 **Инструкция:**\n"
-            f"1. Нажми «📋 Скопировать ключ»\n"
-            f"2. Открой Happ → «+» → «Из буфера обмена»",
-            parse_mode="Markdown",
-            reply_markup=copy_keyboard(vless_link)
-        )
-        await message.answer(f"✅ Ключ создан и отправлен пользователю {user_id}")
-    except Exception as e:
-        await message.answer(f"❌ Ошибка при создании ключа: {e}")
+        user_id = int(parts[1])
+    except:
+        await message.answer("❌ Некорректный user_id")
+        return
+    
+    await bot.send_message(
+        user_id,
+        f"🔑 **Ваша подписка UniGate:**\n\n"
+        f"`{SUBSCRIPTION_URL}`\n\n"
+        f"📱 **Инструкция:**\n"
+        f"1. Скопируйте ссылку\n"
+        f"2. Откройте Happ → «+» → «Импорт по URL»\n"
+        f"3. Вставьте ссылку и нажмите «Готово»",
+        parse_mode="Markdown"
+    )
+    
+    await message.answer(f"✅ Подписка отправлена пользователю {user_id}")
 
 # ========== ЗАПУСК ==========
 async def main():
