@@ -1,2 +1,2 @@
-https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/Финляндия.happ
-
+vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:443?type=tcp&security=reality&pbk=TbZ0D0GDhbAVmevyHIGuaOJy90RG-fzWV8uoCIFRths&fp=random&sni=ads.x5.ru&sid=05&flow=xtls-rprx-vision#🇫🇮 Финляндия 443
+vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:8443?type=tcp&security=reality&pbk=aWAurDXKkcC7jowmwh1GWjK5Awgodeh7Aa0TBv_87zk&fp=random&sni=ads.x5.ru&sid=36cf196b8751&flow=xtls-rprx-vision#🇫🇮 Финляндия 8443
