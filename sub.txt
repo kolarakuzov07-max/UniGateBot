@@ -1,5 +1,5 @@
-#%FRAGMENT length=1-10, interval=5-20, packets=tlshello
-vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:443?type=tcp&security=reality&pbk=TbZ0D0GDhbAVmevyHIGuaOJy90RG-fzWV8uoCIFRths&fp=random&sni=ads.x5.ru&sid=05&flow=xtls-rprx-vision#🇫🇮 Финляндия
-vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:8443?type=tcp&security=reality&pbk=aWAurDXKkcC7jowmwh1GWjK5Awgodeh7Aa0TBv_87zk&fp=random&sni=ads.x5.ru&sid=36cf196b8751&flow=xtls-rprx-vision#🇫🇮 Финляндия #2
-vless://735c25c3-5f25-4b83-9daa-f6782c3476d0@89.125.27.104:443?type=tcp&security=reality&pbk=NQv9v4X_INAg_oVZa_LPvcCMJ-h3jptktl4nexOM6BY&fp=random&sni=ads.x5.ru&sid=461ffc9b&flow=xtls-rprx-vision#🇵🇱 Польша
-vless://e17e9229-aadb-401e-8cc2-3fe0cd70e766@89.125.27.104:8443?type=tcp&security=reality&pbk=azCgoFVL1y2L2EeaCS7xIZLbmn3hRHBZYGoCbdoZm3A&fp=random&sni=ads.x5.ru&sid=1ca9a200&flow=xtls-rprx-vision#🇵🇱 Польша #2
+https://78.17.38.254:2096/sub/9i0jx0b80hs6i97h
+https://89.125.199.10:2096/sub/33xgabvk97rb7cj7
+https://89.125.199.10:2096/sub/xo1h05el65y3quxw
+https://89.125.27.104:2096/sub/2x2tm0lidfl3a5nh
+https://89.125.27.104:2096/sub/n051opj8w9z6tf1p
