@@ -1,1 +1,2 @@
 https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/Финляндия.happ
+https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/Все%20сервера.happ
