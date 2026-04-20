@@ -1,3 +1,1 @@
-#%FRAGMENT length=1-10, interval=5-20, packets=tlshello
-vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:443?type=tcp&security=reality&pbk=2XaUIOgFOR5wBT7SwOHINmppSveknb_7VxoKyhYtuVk&fp=random&sni=ru.falsemirrov.com&sid=d81416#LTE | Все операторы 🇪🇺 Европа
-vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:8443?type=tcp&security=reality&pbk=9m5o89f1PmvZ6868kzPzujRSJApWS0xsPenqWHcXIDo&fp=random&sni=ru.falsemirrov.com&sid=1105b93103#🇫🇮 Финляндия
+https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/Финляндия.happ
