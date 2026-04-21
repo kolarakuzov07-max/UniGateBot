@@ -1,10 +1,15 @@
 import asyncio
 import sqlite3
+import base64
+import requests
+import uuid
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
+
+from py3xui import Api, Client
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
@@ -14,8 +19,45 @@ BOT_USERNAME = "UniGates_bot"
 CARD_NUMBER = "2200 1523 0320 4112"
 CARD_HOLDER = "SAVELII MINKOV"
 
-# Ссылка на подписку
-SUBSCRIPTION_URL = "https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/main/Финляндия.happ"
+# ========== НАСТРОЙКИ GITHUB ==========
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_REPO = "kolarakuzov07-max/UniGateBot"
+GITHUB_PATH = "sub.txt"
+SUBSCRIPTION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{GITHUB_PATH}"
+
+# ========== НАСТРОЙКИ ПАНЕЛЕЙ ==========
+PANELS = [
+    {
+        "name": "Финляндия",
+        "host": "http://89.125.199.10:18184",
+        "username": "jS0JFHvlsd",
+        "password": "a6qSCo055u",
+        "inbound_id": 1,
+        "public_key": "RDInRTWWcapc63FVwqErWswse5fX1EJsRNyupixfyLQA",
+        "short_id": "05",
+        "ip": "89.125.199.10"
+    },
+    {
+        "name": "Нидерланды",
+        "host": "http://78.17.38.254:54321",
+        "username": "IuzIr13Sz3",
+        "password": "wGvRLBat9G",
+        "inbound_id": 1,
+        "public_key": "gJf-IXJop7xayakfaJ7u57-j7bJTqznPGjlHkJT9_0s",
+        "short_id": "c4",
+        "ip": "78.17.38.254"
+    },
+    {
+        "name": "Польша",
+        "host": "http://89.125.27.104:18184",
+        "username": "YqsmDjGTAW",
+        "password": "tDuL2CYYYq",
+        "inbound_id": 1,
+        "public_key": "NQv9v4X_INAg_oVZa_LPvcCMJ-h3jptktl4nexOM6BY",
+        "short_id": "461ffc9b",
+        "ip": "89.125.27.104"
+    }
+]
 
 # ========== ИНИЦИАЛИЗАЦИЯ ==========
 bot = Bot(token=BOT_TOKEN)
@@ -76,9 +118,65 @@ async def delete_temp_messages(user_id, chat_id):
                 pass
         temp_messages[user_id] = []
 
-async def delete_all_messages(user_id, chat_id):
-    await delete_user_messages(user_id, chat_id)
-    await delete_temp_messages(user_id, chat_id)
+# ========== ФУНКЦИИ РАБОТЫ С ПАНЕЛЯМИ ==========
+async def create_client_on_panel(panel, user_id, days):
+    """Создаёт клиента на указанной панели и возвращает vless:// ссылку"""
+    email = f"user_{user_id}"
+    expiry_time = int((datetime.now() + timedelta(days=days)).timestamp() * 1000)
+    
+    api = Api(panel["host"], panel["username"], panel["password"])
+    api.login()
+    
+    new_client = Client(
+        id=str(uuid.uuid4()),
+        email=email,
+        enable=True,
+        expiry_time=expiry_time,
+        total_gb=0,
+        flow="xtls-rprx-vision"
+    )
+    
+    api.client.add(panel["inbound_id"], new_client)
+    client = api.client.get_by_email(email)
+    
+    vless_link = f"vless://{client.id}@{panel['ip']}:443?type=tcp&security=reality&pbk={panel['public_key']}&fp=random&sid={panel['short_id']}&flow=xtls-rprx-vision#{panel['name']}"
+    
+    return vless_link
+
+async def update_subscription_file(vless_links):
+    """Обновляет файл sub.txt на GitHub"""
+    content = "#%FRAGMENT length=1-10, interval=5-20, packets=tlshello\n"
+    content += "\n".join(vless_links)
+    
+    encoded = base64.b64encode(content.encode()).decode()
+    
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    
+    response = requests.get(url, headers=headers)
+    sha = response.json().get("sha") if response.status_code == 200 else None
+    
+    data = {
+        "message": "Update subscription",
+        "content": encoded,
+        "sha": sha
+    }
+    
+    requests.put(url, headers=headers, json=data)
+
+async def create_subscription(user_id, days):
+    """Создаёт клиентов на всех серверах и возвращает ссылку на подписку"""
+    vless_links = []
+    
+    for panel in PANELS:
+        try:
+            link = await create_client_on_panel(panel, user_id, days)
+            vless_links.append(link)
+        except Exception as e:
+            print(f"Ошибка на панели {panel['name']}: {e}")
+    
+    await update_subscription_file(vless_links)
+    return SUBSCRIPTION_URL
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
@@ -114,15 +212,11 @@ def payment_keyboard(amount, months, user_id):
     builder.adjust(1)
     return builder.as_markup()
 
-def get_test_key(user_id):
-    return f"vless://test-uuid@{user_id}.example.com:443?type=tcp&security=reality&pbk=test&fp=chrome&sni=google.com&sid=test#UniGate_{user_id}"
-
 # ========== ОБРАБОТЧИКИ ==========
 @dp.callback_query(lambda c: c.data == "copy_key")
 async def copy_key(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    key = get_test_key(user_id)
-    await callback.answer(f"🔑 Ключ скопирован!\n\n{key}", show_alert=True)
+    await callback.answer(f"🔑 Подписка активна! Используй ссылку: {SUBSCRIPTION_URL}", show_alert=True)
 
 @dp.callback_query(lambda c: c.data == "copy_payment")
 async def copy_payment(callback: types.CallbackQuery):
@@ -189,8 +283,7 @@ async def payment_received(callback: types.CallbackQuery):
     
     msg = await callback.message.answer(
         "✅ **Заявка на оплату отправлена!**\n\n"
-        "Администратор проверит перевод в ближайшее время.\n"
-        "Обычно это занимает до 15 минут."
+        "Администратор проверит перевод и активирует подписку."
     )
     await save_temp_message(user_id, msg.message_id)
     await callback.answer()
@@ -474,7 +567,7 @@ async def support_command(message: types.Message):
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
         await save_temp_message(user_id, msg.message_id)
 
-# ========== АДМИН-КОМАНДЫ ==========
+# ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
 async def activate_user(message: types.Message):
     if message.from_user.id not in ADMIN_IDS:
@@ -489,55 +582,31 @@ async def activate_user(message: types.Message):
     _, user_id, months = parts
     user_id = int(user_id)
     months = int(months)
+    days = months * 30
     
-    end_date = datetime.now() + timedelta(days=30 * months)
-    cursor.execute("INSERT INTO users (user_id, subscription_end, pending_payment) VALUES (?, ?, 0) ON CONFLICT(user_id) DO UPDATE SET subscription_end = ?, pending_payment = 0", (user_id, end_date.isoformat(), end_date.isoformat()))
+    end_date = datetime.now() + timedelta(days=days)
+    cursor.execute("""
+        INSERT INTO users (user_id, subscription_end, pending_payment) 
+        VALUES (?, ?, 0) 
+        ON CONFLICT(user_id) DO UPDATE SET subscription_end = ?, pending_payment = 0
+    """, (user_id, end_date.isoformat(), end_date.isoformat()))
     conn.commit()
+    
+    subscription_url = await create_subscription(user_id, days)
     
     await bot.send_message(
         user_id,
         f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n"
-        f"📱 **Твоя подписка:**\n"
-        f"`{SUBSCRIPTION_URL}`\n\n"
-        f"📌 **Инструкция:**\n"
+        f"🔗 **Твоя подписка:**\n`{subscription_url}`\n\n"
+        f"📱 **Инструкция:**\n"
         f"1. Скопируй ссылку\n"
         f"2. Открой Happ → «+» → «Импорт по URL»\n"
-        f"3. Вставь ссылку и нажми «Готово»\n"
-        f"4. Выбери сервер и подключись",
+        f"3. Вставь ссылку и нажми «Готово»\n\n"
+        f"🗓️ Действительна до: {end_date.strftime('%d.%m.%Y')}\n"
+        f"🌍 В подписке: Финляндия, Нидерланды, Польша",
         parse_mode="Markdown"
     )
-    
-    await message.answer(f"✅ Подписка активирована для {user_id} на {months} месяц(ев)")
-
-@dp.message(Command("give_sub"))
-async def give_subscription(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ Нет прав")
-        return
-    
-    parts = message.text.split()
-    if len(parts) < 2:
-        await message.answer("❌ Формат: /give_sub user_id")
-        return
-    
-    try:
-        user_id = int(parts[1])
-    except:
-        await message.answer("❌ Некорректный user_id")
-        return
-    
-    await bot.send_message(
-        user_id,
-        f"🔑 **Ваша подписка UniGate:**\n\n"
-        f"`{SUBSCRIPTION_URL}`\n\n"
-        f"📱 **Инструкция:**\n"
-        f"1. Скопируйте ссылку\n"
-        f"2. Откройте Happ → «+» → «Импорт по URL»\n"
-        f"3. Вставьте ссылку и нажмите «Готово»",
-        parse_mode="Markdown"
-    )
-    
-    await message.answer(f"✅ Подписка отправлена пользователю {user_id}")
+    await message.answer(f"✅ Подписка активирована для {user_id}")
 
 # ========== ЗАПУСК ==========
 async def main():
