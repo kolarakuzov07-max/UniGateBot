@@ -1,4 +1,1 @@
 #%FRAGMENT length=1-10, interval=5-20, packets=tlshello
-vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:443?type=tcp&security=reality&pbk=RDInRTWWcapc63FVwqErWswse5fX1EJsRNyupixfyLQA&fp=random&sid=05&flow=xtls-rprx-vision#🇫🇮 Финляндия
-vless://06c042a5-b6c6-4320-9524-2c163157abe6@89.125.199.10:8443?type=tcp&security=reality&pbk=VAD90mLcywAMMj7hZlu3-TcT0e3UOPtt1dk5o_vt-h8&fp=random&sni=ads.x5.ru&sid=36cf196b8751&flow=xtls-rprx-vision#🇫🇮 Финляндия #2
-vless://06c042a5-b6c6-4320-9524-2c163157abe6@78.17.38.254:443?type=tcp&security=reality&pbk=EAXyU7_cnOKYkd21cxRbF7BAC7bf1_CvrK63Oj05VHM&fp=random&sid=c4&flow=xtls-rprx-vision#🇳🇱 Нидерланды
