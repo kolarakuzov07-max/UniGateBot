@@ -32,6 +32,7 @@ PANELS = [
     {
         "name": "Финляндия",
         "host": "https://89.125.199.10:18184",
+        "web_base_path": "/od8QQlPFNnBtEjg81m/",
         "username": "jS0JFHvlsd",
         "password": "a6qSCo055u",
         "inbound_id": 1,
@@ -41,7 +42,8 @@ PANELS = [
     },
     {
         "name": "Нидерланды",
-        "host": "https://78.17.38.254:54321",
+        "host": "https://78.17.38.254:32475",
+        "web_base_path": "/XShFK6HpBlfa9ZUWVc/",
         "username": "IuzIr13Sz3",
         "password": "wGvRLBat9G",
         "inbound_id": 1,
@@ -51,7 +53,8 @@ PANELS = [
     },
     {
         "name": "Польша",
-        "host": "https://89.125.27.104:18184",
+        "host": "https://89.125.27.104:27520",
+        "web_base_path": "/iSbnttdP7TcxC6cJGR/",
         "username": "YqsmDjGTAW",
         "password": "tDuL2CYYYq",
         "inbound_id": 1,
@@ -60,7 +63,6 @@ PANELS = [
         "ip": "89.125.27.104"
     }
 ]
-
 # ========== ИНИЦИАЛИЗАЦИЯ ==========
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
