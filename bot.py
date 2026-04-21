@@ -8,6 +8,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 from py3xui import Api, Client
 
@@ -29,7 +31,7 @@ SUBSCRIPTION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{GITHU
 PANELS = [
     {
         "name": "Финляндия",
-        "host": "http://89.125.199.10:18184",
+        "host": "https://89.125.199.10:18184",
         "username": "jS0JFHvlsd",
         "password": "a6qSCo055u",
         "inbound_id": 1,
@@ -39,7 +41,7 @@ PANELS = [
     },
     {
         "name": "Нидерланды",
-        "host": "http://78.17.38.254:54321",
+        "host": "https://78.17.38.254:54321",
         "username": "IuzIr13Sz3",
         "password": "wGvRLBat9G",
         "inbound_id": 1,
@@ -49,7 +51,7 @@ PANELS = [
     },
     {
         "name": "Польша",
-        "host": "http://89.125.27.104:18184",
+        "host": "https://89.125.27.104:18184",
         "username": "YqsmDjGTAW",
         "password": "tDuL2CYYYq",
         "inbound_id": 1,
