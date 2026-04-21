@@ -2,16 +2,17 @@ import asyncio
 import sqlite3
 import base64
 import requests
+import json
 import uuid
+import ssl
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
 
-from py3xui import Api, Client
+# Отключаем проверку SSL (для самоподписанных сертификатов)
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
@@ -32,7 +33,6 @@ PANELS = [
     {
         "name": "Финляндия",
         "host": "https://89.125.199.10:18184",
-        "web_base_path": "/od8QQlPFNnBtEjg81m/",
         "username": "jS0JFHvlsd",
         "password": "a6qSCo055u",
         "inbound_id": 1,
@@ -43,7 +43,6 @@ PANELS = [
     {
         "name": "Нидерланды",
         "host": "https://78.17.38.254:32475",
-        "web_base_path": "/XShFK6HpBlfa9ZUWVc/",
         "username": "IuzIr13Sz3",
         "password": "wGvRLBat9G",
         "inbound_id": 1,
@@ -54,7 +53,6 @@ PANELS = [
     {
         "name": "Польша",
         "host": "https://89.125.27.104:27520",
-        "web_base_path": "/iSbnttdP7TcxC6cJGR/",
         "username": "YqsmDjGTAW",
         "password": "tDuL2CYYYq",
         "inbound_id": 1,
@@ -63,6 +61,7 @@ PANELS = [
         "ip": "89.125.27.104"
     }
 ]
+
 # ========== ИНИЦИАЛИЗАЦИЯ ==========
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -123,29 +122,48 @@ async def delete_temp_messages(user_id, chat_id):
         temp_messages[user_id] = []
 
 # ========== ФУНКЦИИ РАБОТЫ С ПАНЕЛЯМИ ==========
+def api_login(panel):
+    """Логин в панели 3X-UI, возвращает сессию"""
+    session = requests.Session()
+    login_url = f"{panel['host']}/login"
+    login_data = {
+        "username": panel["username"],
+        "password": panel["password"]
+    }
+    session.post(login_url, data=login_data, verify=False)
+    return session
+
 async def create_client_on_panel(panel, user_id, days):
     """Создаёт клиента на указанной панели и возвращает vless:// ссылку"""
     email = f"user_{user_id}"
     expiry_time = int((datetime.now() + timedelta(days=days)).timestamp() * 1000)
+    client_uuid = str(uuid.uuid4())
     
-    api = Api(panel["host"], panel["username"], panel["password"])
-    api.login()
+    session = api_login(panel)
     
-    new_client = Client(
-        id=str(uuid.uuid4()),
-        email=email,
-        enable=True,
-        expiry_time=expiry_time,
-        total_gb=0,
-        flow="xtls-rprx-vision"
-    )
+    # Создаём клиента
+    api_url = f"{panel['host']}/panel/api/inbounds/addClient"
+    data = {
+        "id": panel["inbound_id"],
+        "settings": json.dumps({
+            "clients": [{
+                "id": client_uuid,
+                "email": email,
+                "enable": True,
+                "expiryTime": expiry_time,
+                "totalGB": 0,
+                "flow": "xtls-rprx-vision"
+            }]
+        })
+    }
     
-    api.client.add(panel["inbound_id"], new_client)
-    client = api.client.get_by_email(email)
+    response = session.post(api_url, json=data, verify=False)
     
-    vless_link = f"vless://{client.id}@{panel['ip']}:443?type=tcp&security=reality&pbk={panel['public_key']}&fp=random&sid={panel['short_id']}&flow=xtls-rprx-vision#{panel['name']}"
+    if response.status_code == 200:
+        vless_link = f"vless://{client_uuid}@{panel['ip']}:443?type=tcp&security=reality&pbk={panel['public_key']}&fp=random&sid={panel['short_id']}&flow=xtls-rprx-vision#{panel['name']}"
+        return vless_link
     
-    return vless_link
+    return None
 
 async def update_subscription_file(vless_links):
     """Обновляет файл sub.txt на GitHub"""
@@ -175,11 +193,14 @@ async def create_subscription(user_id, days):
     for panel in PANELS:
         try:
             link = await create_client_on_panel(panel, user_id, days)
-            vless_links.append(link)
+            if link:
+                vless_links.append(link)
         except Exception as e:
             print(f"Ошибка на панели {panel['name']}: {e}")
     
-    await update_subscription_file(vless_links)
+    if vless_links:
+        await update_subscription_file(vless_links)
+    
     return SUBSCRIPTION_URL
 
 # ========== КЛАВИАТУРЫ ==========
