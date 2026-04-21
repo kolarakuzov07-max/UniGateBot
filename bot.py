@@ -1,7 +1,6 @@
 import asyncio
 import sqlite3
 import base64
-import requests
 import uuid
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types
