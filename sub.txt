@@ -1,2 +1,3 @@
 https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/server2.json
 https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/server3.json
+https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/Finland.json
