@@ -1,0 +1,112 @@
+{
+  "dns": {
+    "queryStrategy": "UseIPv4",
+    "servers": ["8.8.8.8", "9.9.9.9"],
+    "tag": "dns-in"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 10808,
+      "protocol": "socks",
+      "settings": { "auth": "noauth", "udp": true },
+      "sniffing": { "destOverride": ["http", "tls", "quic"], "enabled": true, "routeOnly": false },
+      "tag": "socks"
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10809,
+      "protocol": "http",
+      "settings": { "allowTransparent": false },
+      "sniffing": { "destOverride": ["http", "tls", "quic"], "enabled": true, "routeOnly": false },
+      "tag": "http"
+    }
+  ],
+  "log": {
+    "loglevel": "Warning"
+  },
+  "meta": {
+    "serverDescription": "UniGate"
+  },
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "157.22.231.43",
+            "port": 8445,
+            "users": [
+              {
+                "id": "f0d85df5-6168-48b3-b554-6322d59cac23",
+                "flow": "xtls-rprx-vision",
+                "encryption": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "fingerprint": "chrome",
+          "serverName": "dl.google.com",
+          "publicKey": "8q5UlXBcrNRle-69gdFr27IFkrjC_48qG6VuKNWD-UE",
+          "shortId": "25",
+          "spiderX": "/"
+        }
+      },
+      "tag": "proxy"
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block"
+    }
+  ],
+  "remarks": "🇫🇮 Финляндия 2096",
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "domain": [
+          "domain:mtalk.google.com",
+          "domain:push.apple.com",
+          "domain:api.push.apple.com",
+          "domain:push-apple.com.akadns.net",
+          "domain:*-courier.push.apple.com"
+        ],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+      {
+        "ip": ["17.0.0.0/8"],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+      {
+        "domain": [
+          "domain:telegram.org",
+          "domain:t.me",
+          "domain:tdesktop.com",
+          "domain:telegra.ph"
+        ],
+        "outboundTag": "proxy",
+        "type": "field"
+      },
+      {
+        "ip": [
+          "91.108.0.0/16",
+          "95.161.0.0/16",
+          "149.154.0.0/16"
+        ],
+        "outboundTag": "proxy",
+        "type": "field"
+      }
+    ]
+  }
+}
