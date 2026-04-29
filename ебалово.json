@@ -1,0 +1,73 @@
+{
+  "dns": {
+    "queryStrategy": "UseIPv4",
+    "servers": ["8.8.8.8", "9.9.9.9"],
+    "tag": "dns-in"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 10808,
+      "protocol": "socks",
+      "settings": { "auth": "noauth", "udp": true },
+      "sniffing": { "destOverride": ["http", "tls", "quic"], "enabled": true, "routeOnly": false },
+      "tag": "socks"
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10809,
+      "protocol": "http",
+      "settings": { "allowTransparent": false },
+      "sniffing": { "destOverride": ["http", "tls", "quic"], "enabled": true, "routeOnly": false },
+      "tag": "http"
+    }
+  ],
+  "log": {
+    "loglevel": "Warning"
+  },
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "78.17.38.254",
+            "port": 443,
+            "users": [
+              {
+                "id": "8b9c0643-69a6-4ae1-8d19-0de9c037613f",
+                "flow": "xtls-rprx-vision",
+                "encryption": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "fingerprint": "random",
+          "serverName": "yandex.ru",
+          "publicKey": "mGe2HeUAJedaPpzb0gYgwxREQ_DZvOSN3L8Ong-5QT8",
+          "shortId": "cbdf27d3",
+          "spiderX": "/"
+        }
+      },
+      "tag": "proxy"
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block"
+    }
+  ],
+  "remarks": "🇳🇱 Нидерланды",
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": []
+  }
+}
