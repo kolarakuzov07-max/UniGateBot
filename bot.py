@@ -15,7 +15,7 @@ import os
 ssl._create_default_https_context = ssl._create_unverified_context
 
 # ========== НАСТРОЙКИ ==========
-BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
+BOT_TOKEN = "8598128447:AAELO9xBRUKx8cWVbIn_3kiQB1CglsALTZk"
 ADMIN_IDS = [1446300344, 2051767977]
 BOT_USERNAME = "UniGates_bot"
 
