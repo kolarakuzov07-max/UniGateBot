@@ -20,14 +20,17 @@ CARD_HOLDER = "SAVELII MINKOV"
 XUI_URL = "https://89.125.199.10:18184"
 XUI_USERNAME = "jS0JFHvlsd"
 XUI_PASSWORD = "a6qSCo055u"
-INBOUND_ID = 14  # ID из панели (смотри в Inbound List)
+INBOUND_ID = 14
 
 SERVER_IP = "89.125.199.10"
-PORT = 8443  # порт из твоего Inbound
+PORT = 8443
 PUBLIC_KEY = "mT5TlvgHgv3kinWWTdHByPWmDvLSDdscR2sHMBButlE"
 SHORT_ID = "1049b659"
 SNI = "rydervless.ru"
 FLOW = "xtls-rprx-vision"
+
+# ========== ЦЕНЫ ==========
+PRICES = {1: 100, 2: 180, 3: 270}
 
 # ========== ИНИЦИАЛИЗАЦИЯ ==========
 bot = Bot(token=BOT_TOKEN)
@@ -61,9 +64,9 @@ def main_keyboard():
 
 def tariffs_keyboard():
     builder = InlineKeyboardBuilder()
-    builder.button(text="⭐ 1 месяц — 200₽ ⭐", callback_data="tariff_1")
-    builder.button(text="🔥 2 месяца — 350₽ 🔥", callback_data="tariff_2")
-    builder.button(text="💎 3 месяца — 500₽ 💎", callback_data="tariff_3")
+    builder.button(text="⭐ 1 месяц — 100₽ ⭐", callback_data="tariff_1")
+    builder.button(text="🔥 2 месяца — 180₽ 🔥", callback_data="tariff_2")
+    builder.button(text="💎 3 месяца — 270₽ 💎", callback_data="tariff_3")
     builder.adjust(1)
     return builder.as_markup()
 
@@ -84,7 +87,6 @@ def copy_keyboard(connection_string):
 
 # ========== API 3X-UI ==========
 async def create_xui_client(user_id: int, months: int):
-    """Создаёт клиента в 3X-UI и возвращает vless:// ссылку"""
     days = months * 30
     expiry_time = int((datetime.now() + timedelta(days=days)).timestamp() * 1000)
     email = f"user_{user_id}"
@@ -99,7 +101,6 @@ async def create_xui_client(user_id: int, months: int):
     }
 
     async with aiohttp.ClientSession() as session:
-        # Логин
         login_data = {"username": XUI_USERNAME, "password": XUI_PASSWORD}
         try:
             async with session.post(f"{XUI_URL}/login", data=login_data, ssl=False) as login_resp:
@@ -108,7 +109,6 @@ async def create_xui_client(user_id: int, months: int):
         except:
             return None
 
-        # Добавление клиента
         add_url = f"{XUI_URL}/panel/api/inbounds/addClient"
         payload = {
             "id": INBOUND_ID,
@@ -132,8 +132,7 @@ async def copy_payment(callback: types.CallbackQuery):
     cursor.execute("SELECT pending_payment FROM users WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
     months = result[0] if result else 1
-    prices = {1: 200, 2: 350, 3: 500}
-    amount = prices.get(months, 200)
+    amount = PRICES.get(months, 100)
     text = f"Переведи {amount}₽ на карту {CARD_NUMBER}\nПолучатель: {CARD_HOLDER}\nКомментарий: {user_id}"
     await callback.answer(f"💳 Реквизиты скопированы!\n\n{text}", show_alert=True)
 
@@ -141,12 +140,20 @@ async def copy_payment(callback: types.CallbackQuery):
 async def select_tariff(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     tariff = callback.data.split("_")[1]
-    prices = {"1": 200, "2": 350, "3": 500}
-    amount = prices.get(tariff, 200)
     months = int(tariff)
+    amount = PRICES.get(months, 100)
+    
     cursor.execute("INSERT INTO users (user_id, pending_payment) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET pending_payment = ?", (user_id, months, months))
     conn.commit()
-    text = (f"💳 **Оплата {months} месяц(ев) — {amount}₽**\n\n**Реквизиты:**\nКарта: `{CARD_NUMBER}`\nПолучатель: {CARD_HOLDER}\nСумма: {amount}₽\n**Комментарий:** `{user_id}`")
+    
+    text = (f"💳 **Оплата {months} месяц(ев) — {amount}₽**\n\n"
+            f"**Реквизиты для перевода:**\n"
+            f"📌 Карта: `{CARD_NUMBER}`\n"
+            f"📌 Получатель: `{CARD_HOLDER}`\n"
+            f"📌 Сумма: {amount}₽\n"
+            f"📌 Комментарий: `{user_id}`\n\n"
+            f"✅ **После перевода** нажми кнопку «✅ Я оплатил».")
+    
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
     await callback.answer()
 
@@ -154,10 +161,11 @@ async def select_tariff(callback: types.CallbackQuery):
 async def payment_received(callback: types.CallbackQuery):
     months = int(callback.data.split("_")[1])
     user_id = callback.from_user.id
-    prices = {1: 200, 2: 350, 3: 500}
-    amount = prices.get(months, 200)
+    amount = PRICES.get(months, 100)
+    
     for admin_id in ADMIN_IDS:
         await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
+    
     await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
     await callback.answer()
 
@@ -170,7 +178,7 @@ async def back_to_menu(callback: types.CallbackQuery):
     await start_command(callback.message)
     await callback.answer()
 
-# ========== ПРОФИЛЬ С ФОТО ==========
+# ========== ПРОФИЛЬ ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
@@ -187,18 +195,9 @@ async def profile_command(message: types.Message):
         status = "❌ Нет активной подписки"
     
     text = f"👤 **Ваш профиль UniGate**\n\n📅 Статус подписки: {status}"
-    
-    try:
-        with open("profile.jpg", "rb") as photo:
-            await message.answer_photo(
-                photo=types.BufferedInputFile(photo.read(), filename="profile.jpg"),
-                caption=text,
-                parse_mode="Markdown"
-            )
-    except:
-        await message.answer(text, parse_mode="Markdown")
+    await message.answer(text, parse_mode="Markdown")
 
-# ========== СТАРТ С ФОТО ==========
+# ========== СТАРТ ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -206,17 +205,7 @@ async def start_command(message: types.Message):
     conn.commit()
     
     text = "🚪 **Добро пожаловать в UniGate!**\n\n👇 **Выбери действие:**"
-    
-    try:
-        with open("welcome.jpg", "rb") as photo:
-            await message.answer_photo(
-                photo=types.BufferedInputFile(photo.read(), filename="welcome.jpg"),
-                caption=text,
-                parse_mode="Markdown",
-                reply_markup=main_keyboard()
-            )
-    except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
+    await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
 
 # ========== ГЛАВНОЕ МЕНЮ ==========
 @dp.message(lambda m: m.text == "🏠 Главное меню")
@@ -242,40 +231,18 @@ async def get_key(message: types.Message):
                 return
     await message.answer("❌ **У тебя нет активной подписки.**\n\nНажми «💳 Тарифы», чтобы оплатить доступ.", parse_mode="Markdown")
 
-# ========== ТАРИФЫ С ФОТО ==========
+# ========== ТАРИФЫ ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
-    text = "💰 **Наши тарифы:**\n\n⭐ 1 месяц — 200₽\n🔥 2 месяца — 350₽\n💎 3 месяца — 500₽"
-    
-    try:
-        with open("tariffs.jpg", "rb") as photo:
-            await message.answer_photo(
-                photo=types.BufferedInputFile(photo.read(), filename="tariffs.jpg"),
-                caption=text,
-                parse_mode="Markdown",
-                reply_markup=tariffs_keyboard()
-            )
-    except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+    text = "💰 **Наши тарифы:**\n\n⭐ 1 месяц — 100₽\n🔥 2 месяца — 180₽\n💎 3 месяца — 270₽"
+    await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
-# ========== ПОДДЕРЖКА С ФОТО ==========
+# ========== ПОДДЕРЖКА ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать", url="https://t.me/UniGatesSupport")
-    
-    text = "📞 **Служба поддержки UniGate**\n\nВозникли проблемы? Напиши нам!"
-    
-    try:
-        with open("support.jpg", "rb") as photo:
-            await message.answer_photo(
-                photo=types.BufferedInputFile(photo.read(), filename="support.jpg"),
-                caption=text,
-                parse_mode="Markdown",
-                reply_markup=builder.as_markup()
-            )
-    except:
-        await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
+    await message.answer("📞 **Служба поддержки UniGate**\n\nВозникли проблемы? Напиши нам!", parse_mode="Markdown", reply_markup=builder.as_markup())
 
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
