@@ -20,7 +20,7 @@ CARD_HOLDER = "SAVELII MINKOV"
 XUI_URL = "https://89.125.199.10:18184"
 XUI_USERNAME = "jS0JFHvlsd"
 XUI_PASSWORD = "a6qSCo055u"
-INBOUND_ID = 1  # ← ЗАМЕНИ НА ЦИФРУ ИЗ ПАНЕЛИ (1, 2 или 3)
+INBOUND_ID = 14  # ← ЗАМЕНИ НА ЦИФРУ ИЗ ПАНЕЛИ (1, 2 или 3)
 
 SERVER_IP = "89.125.199.10"
 PORT = 443
