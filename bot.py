@@ -7,8 +7,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = "8598128447:AAELO9xBRUKx8cWVbIn_3kiQB1CglsALTZk"
@@ -22,10 +20,10 @@ CARD_HOLDER = "SAVELII MINKOV"
 XUI_URL = "https://89.125.199.10:18184"
 XUI_USERNAME = "jS0JFHvlsd"
 XUI_PASSWORD = "a6qSCo055u"
-INBOUND_ID = 14  # ← ЗАМЕНИ НА ЦИФРУ ИЗ ПАНЕЛИ (1, 2 или 3)
+INBOUND_ID = 14  # ID из панели (смотри в Inbound List)
 
 SERVER_IP = "89.125.199.10"
-PORT = 8443
+PORT = 8443  # порт из твоего Inbound
 PUBLIC_KEY = "mT5TlvgHgv3kinWWTdHByPWmDvLSDdscR2sHMBButlE"
 SHORT_ID = "1049b659"
 SNI = "rydervless.ru"
@@ -103,7 +101,12 @@ async def create_xui_client(user_id: int, months: int):
     async with aiohttp.ClientSession() as session:
         # Логин
         login_data = {"username": XUI_USERNAME, "password": XUI_PASSWORD}
-        await session.post(f"{XUI_URL}/login", data=login_data, ssl=False)
+        try:
+            async with session.post(f"{XUI_URL}/login", data=login_data, ssl=False) as login_resp:
+                if login_resp.status != 200:
+                    return None
+        except:
+            return None
 
         # Добавление клиента
         add_url = f"{XUI_URL}/panel/api/inbounds/addClient"
@@ -111,14 +114,16 @@ async def create_xui_client(user_id: int, months: int):
             "id": INBOUND_ID,
             "settings": json.dumps({"clients": [client_config]})
         }
-        async with session.post(add_url, json=payload, ssl=False) as resp:
-            if resp.status == 200:
-                result = await resp.json()
-                if result.get("success"):
-                    # Формируем ссылку вручную
-                    vless_link = f"vless://{email}@{SERVER_IP}:{PORT}?type=tcp&security=reality&pbk={PUBLIC_KEY}&fp=chrome&sni={SNI}&sid={SHORT_ID}&flow={FLOW}#UniGate_{user_id}"
-                    return vless_link
+        try:
+            async with session.post(add_url, json=payload, ssl=False) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    if result.get("success"):
+                        vless_link = f"vless://{email}@{SERVER_IP}:{PORT}?type=tcp&security=reality&pbk={PUBLIC_KEY}&fp=chrome&sni={SNI}&sid={SHORT_ID}&flow={FLOW}#UniGate_{user_id}"
+                        return vless_link
+        except:
             return None
+    return None
 
 # ========== ОБРАБОТЧИКИ ==========
 @dp.callback_query(lambda c: c.data == "copy_payment")
@@ -156,12 +161,16 @@ async def payment_received(callback: types.CallbackQuery):
     await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
     await callback.answer()
 
+@dp.callback_query(lambda c: c.data == "copy_key")
+async def copy_key(callback: types.CallbackQuery):
+    await callback.answer("🔑 Ключ скопирован!", show_alert=True)
+
 @dp.callback_query(lambda c: c.data == "back_to_menu")
 async def back_to_menu(callback: types.CallbackQuery):
     await start_command(callback.message)
     await callback.answer()
 
-# ========== ПРОФИЛЬ ==========
+# ========== ПРОФИЛЬ С ФОТО ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
@@ -176,22 +185,43 @@ async def profile_command(message: types.Message):
             status = "❌ Истекла"
     else:
         status = "❌ Нет активной подписки"
-    await message.answer(f"👤 **Ваш профиль**\n\n📅 Статус: {status}")
+    
+    text = f"👤 **Ваш профиль UniGate**\n\n📅 Статус подписки: {status}"
+    
+    try:
+        with open("profile.jpg", "rb") as photo:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="profile.jpg"),
+                caption=text,
+                parse_mode="Markdown"
+            )
+    except:
+        await message.answer(text, parse_mode="Markdown")
 
-# ========== СТАРТ ==========
+# ========== СТАРТ С ФОТО ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
     cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     conn.commit()
-    text = "🚪 Добро пожаловать в UniGate!\n\n👇 Выбери действие:"
-    await message.answer(text, reply_markup=main_keyboard())
+    
+    text = "🚪 **Добро пожаловать в UniGate!**\n\n👇 **Выбери действие:**"
+    
+    try:
+        with open("welcome.jpg", "rb") as photo:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="welcome.jpg"),
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=main_keyboard()
+            )
+    except:
+        await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
 
-# ========== ТАРИФЫ ==========
-@dp.message(lambda m: m.text == "💳 Тарифы")
-async def show_tariffs(message: types.Message):
-    text = "💰 **Наши тарифы:**\n\n⭐ 1 месяц — 200₽\n🔥 2 месяца — 350₽\n💎 3 месяца — 500₽"
-    await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+# ========== ГЛАВНОЕ МЕНЮ ==========
+@dp.message(lambda m: m.text == "🏠 Главное меню")
+async def main_menu(message: types.Message):
+    await start_command(message)
 
 # ========== ПОЛУЧИТЬ КЛЮЧ ==========
 @dp.message(lambda m: m.text == "🛡️ Получить ключ")
@@ -203,16 +233,49 @@ async def get_key(message: types.Message):
         end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
             vless_link = await create_xui_client(user_id, 1)
-            await message.answer(f"🔑 **Твой ключ:**\n`{vless_link}`\n\nИмпортируй в Happ", parse_mode="Markdown", reply_markup=copy_keyboard(vless_link))
-            return
-    await message.answer("❌ Нет активной подписки. Нажми «💳 Тарифы».")
+            if vless_link:
+                await message.answer(
+                    f"🔑 **Твой VPN-ключ:**\n\n`{vless_link}`\n\n📱 **Инструкция:**\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»",
+                    parse_mode="Markdown",
+                    reply_markup=copy_keyboard(vless_link)
+                )
+                return
+    await message.answer("❌ **У тебя нет активной подписки.**\n\nНажми «💳 Тарифы», чтобы оплатить доступ.", parse_mode="Markdown")
 
-# ========== ПОДДЕРЖКА ==========
+# ========== ТАРИФЫ С ФОТО ==========
+@dp.message(lambda m: m.text == "💳 Тарифы")
+async def show_tariffs(message: types.Message):
+    text = "💰 **Наши тарифы:**\n\n⭐ 1 месяц — 200₽\n🔥 2 месяца — 350₽\n💎 3 месяца — 500₽"
+    
+    try:
+        with open("tariffs.jpg", "rb") as photo:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="tariffs.jpg"),
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=tariffs_keyboard()
+            )
+    except:
+        await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
+
+# ========== ПОДДЕРЖКА С ФОТО ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать", url="https://t.me/UniGatesSupport")
-    await message.answer("📞 По вопросам пиши сюда:", reply_markup=builder.as_markup())
+    
+    text = "📞 **Служба поддержки UniGate**\n\nВозникли проблемы? Напиши нам!"
+    
+    try:
+        with open("support.jpg", "rb") as photo:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="support.jpg"),
+                caption=text,
+                parse_mode="Markdown",
+                reply_markup=builder.as_markup()
+            )
+    except:
+        await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
 
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
@@ -236,15 +299,6 @@ async def activate_user(message: types.Message):
         await message.answer(f"✅ Ключ отправлен {user_id}")
     else:
         await message.answer("❌ Ошибка при создании ключа")
-
-# ========== ГЛАВНОЕ МЕНЮ ==========
-@dp.message(lambda m: m.text == "🏠 Главное меню")
-async def main_menu(message: types.Message):
-    await start_command(message)
-
-@dp.callback_query(lambda c: c.data == "copy_key")
-async def copy_key(callback: types.CallbackQuery):
-    await callback.answer("🔑 Ключ скопирован!", show_alert=True)
 
 # ========== ЗАПУСК ==========
 async def main():
