@@ -17,7 +17,7 @@ CARD_NUMBER = "2200 1523 0320 4112"
 CARD_HOLDER = "SAVELII MINKOV"
 
 # ========== НАСТРОЙКИ ПАНЕЛИ 3X-UI ==========
-XUI_URL = "https://89.125.199.10:18184"
+XUI_URL = "https://89.125.199.10:18184/od8QQlPFNnBtEjg81m/panel/inbounds"
 XUI_USERNAME = "jS0JFHvlsd"
 XUI_PASSWORD = "a6qSCo055u"
 INBOUND_ID = 14
