@@ -7,6 +7,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = "8598128447:AAELO9xBRUKx8cWVbIn_3kiQB1CglsALTZk"
