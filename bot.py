@@ -154,6 +154,7 @@ async def select_tariff(callback: types.CallbackQuery):
             f"📌 Комментарий: `{user_id}`\n\n"
             f"✅ **После перевода** нажми кнопку «✅ Я оплатил».")
     
+    # ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ, а не редактируем
     await callback.message.answer(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
     await callback.answer()
 
