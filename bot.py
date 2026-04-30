@@ -23,7 +23,7 @@ XUI_PASSWORD = "a6qSCo055u"
 INBOUND_ID = 14  # ← ЗАМЕНИ НА ЦИФРУ ИЗ ПАНЕЛИ (1, 2 или 3)
 
 SERVER_IP = "89.125.199.10"
-PORT = 443
+PORT = 8443
 PUBLIC_KEY = "mT5TlvgHgv3kinWWTdHByPWmDvLSDdscR2sHMBButlE"
 SHORT_ID = "1049b659"
 SNI = "rydervless.ru"
