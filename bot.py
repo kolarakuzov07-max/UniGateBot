@@ -154,7 +154,7 @@ async def select_tariff(callback: types.CallbackQuery):
             f"📌 Комментарий: `{user_id}`\n\n"
             f"✅ **После перевода** нажми кнопку «✅ Я оплатил».")
     
-    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
+    await callback.message.answer(text, parse_mode="Markdown", reply_markup=payment_keyboard(amount, months, user_id))
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("paid_"))
@@ -166,7 +166,7 @@ async def payment_received(callback: types.CallbackQuery):
     for admin_id in ADMIN_IDS:
         await bot.send_message(admin_id, f"💰 **НОВАЯ ОПЛАТА**\n\n👤 Пользователь: [{user_id}](tg://user?id={user_id})\n📆 Тариф: {months} месяц(ев)\n💵 Сумма: {amount}₽\n\n✅ После проверки введи:\n`/activate {user_id} {months}`", parse_mode="Markdown")
     
-    await callback.message.edit_text("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
+    await callback.message.answer("✅ **Заявка на оплату отправлена!**\n\nАдминистратор проверит перевод и активирует подписку.")
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data == "copy_key")
