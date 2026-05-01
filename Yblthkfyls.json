@@ -1,0 +1,87 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "dns": {
+    "servers": ["1.1.1.1", "8.8.8.8"],
+    "queryStrategy": "UseIPv4"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 1080,
+      "protocol": "socks",
+      "settings": { "auth": "noauth", "udp": true },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] },
+      "tag": "socks-in"
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 1081,
+      "protocol": "http",
+      "settings": {},
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls"] },
+      "tag": "http-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "netherlands",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "78.17.38.254",
+            "port": 443,
+            "users": [
+              {
+                "id": "43fbf03f-555e-4a39-a00e-71f0056d74df",
+                "flow": "xtls-rprx-vision",
+                "encryption": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "fingerprint": "chrome",
+          "serverName": "stats.vk-portal.net",
+          "publicKey": "7JAZVPR0EOuqPbG1l6zzE-uZvrKudDZ3MVOhMvPLHgE",
+          "shortId": "32d9bd0401c20c00",
+          "spiderX": "/"
+        }
+      }
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "domain": ["geosite:ru", "geosite:category-ru"],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "ip": ["geoip:ru"],
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}
