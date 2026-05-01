@@ -33,27 +33,26 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
-# ========== УДАЛЕНИЕ СООБЩЕНИЙ ==========
-user_messages = {}  # {user_id: [message_id, message_id, ...]}
+# ========== ХРАНИЛИЩЕ ID СООБЩЕНИЙ БОТА ==========
+bot_messages = {}  # {user_id: [message_id, ...]}
 
-async def delete_previous_messages(user_id, chat_id):
-    """Удаляет все предыдущие сообщения бота для пользователя"""
-    if user_id in user_messages:
-        for msg_id in user_messages[user_id]:
+async def delete_bot_messages(user_id, chat_id):
+    """Удаляет только сообщения бота (не кнопки и не команды пользователя)"""
+    if user_id in bot_messages:
+        for msg_id in bot_messages[user_id]:
             try:
                 await bot.delete_message(chat_id, msg_id)
             except:
                 pass
-        user_messages[user_id] = []
+        bot_messages[user_id] = []
 
-async def save_message(user_id, message_id):
-    """Сохраняет ID сообщения бота для последующего удаления"""
-    if user_id not in user_messages:
-        user_messages[user_id] = []
-    user_messages[user_id].append(message_id)
-    # Оставляем только последние 10 сообщений
-    if len(user_messages[user_id]) > 10:
-        user_messages[user_id] = user_messages[user_id][-10:]
+async def save_bot_message(user_id, message_id):
+    """Сохраняет ID сообщения бота"""
+    if user_id not in bot_messages:
+        bot_messages[user_id] = []
+    bot_messages[user_id].append(message_id)
+    if len(bot_messages[user_id]) > 10:
+        bot_messages[user_id] = bot_messages[user_id][-10:]
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
@@ -79,7 +78,7 @@ async def select_tariff(callback: types.CallbackQuery):
     chat_id = callback.message.chat.id
     
     # Удаляем старые сообщения бота
-    await delete_previous_messages(user_id, chat_id)
+    await delete_bot_messages(user_id, chat_id)
     
     tariff = callback.data.split("_")[1]
     months = int(tariff)
@@ -92,19 +91,12 @@ async def select_tariff(callback: types.CallbackQuery):
         f"📌 Получатель: `{CARD_HOLDER}`\n"
         f"📌 Сумма: {amount}₽\n"
         f"📌 Комментарий: `{user_id}`\n\n"
-        f"✅ **После перевода** напиши сюда: @{ADMIN_USERNAME}\n"
-        f"Пришли чек и свой Telegram ID: `{user_id}`\n\n"
+        f"✅ **После перевода** напиши @{ADMIN_USERNAME} и пришли чек.\n\n"
         f"Я проверю и активирую подписку!"
     )
     
-    # Удаляем сообщение с кнопками тарифов
-    try:
-        await callback.message.delete()
-    except:
-        pass
-    
     msg = await callback.message.answer(text, parse_mode="Markdown")
-    await save_message(user_id, msg.message_id)
+    await save_bot_message(user_id, msg.message_id)
     await callback.answer()
 
 @dp.message(lambda m: m.text == "👤 Профиль")
@@ -114,14 +106,7 @@ async def profile_command(message: types.Message):
     username = message.from_user.username or "нет"
     first_name = message.from_user.first_name or ""
     
-    # Удаляем старые сообщения бота
-    await delete_previous_messages(user_id, chat_id)
-    
-    # Удаляем сообщение пользователя с командой
-    try:
-        await message.delete()
-    except:
-        pass
+    await delete_bot_messages(user_id, chat_id)
     
     profile_text = (
         f"👤 **Ваш профиль UniGate**\n\n"
@@ -136,9 +121,8 @@ async def profile_command(message: types.Message):
     )
     
     msg = await message.answer(profile_text, parse_mode="Markdown")
-    await save_message(user_id, msg.message_id)
+    await save_bot_message(user_id, msg.message_id)
 
-# ========== СТАРТ ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -146,14 +130,7 @@ async def start_command(message: types.Message):
     username = message.from_user.username
     first_name = message.from_user.first_name
     
-    # Удаляем старые сообщения бота
-    await delete_previous_messages(user_id, chat_id)
-    
-    # Удаляем сообщение пользователя с командой /start
-    try:
-        await message.delete()
-    except:
-        pass
+    await delete_bot_messages(user_id, chat_id)
     
     # Сохраняем пользователя в БД
     cursor.execute("INSERT OR IGNORE INTO users (user_id, username, first_name) VALUES (?, ?, ?)", (user_id, username, first_name))
@@ -178,25 +155,17 @@ async def start_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
-            await save_message(user_id, msg.message_id)
+            await save_bot_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
-        await save_message(user_id, msg.message_id)
+        await save_bot_message(user_id, msg.message_id)
 
-# ========== ТАРИФЫ ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    # Удаляем старые сообщения бота
-    await delete_previous_messages(user_id, chat_id)
-    
-    # Удаляем сообщение пользователя с командой
-    try:
-        await message.delete()
-    except:
-        pass
+    await delete_bot_messages(user_id, chat_id)
     
     text = "💰 **Наши тарифы:**\n\n⭐ 1 месяц — 100₽\n🔥 2 месяца — 180₽\n💎 3 месяца — 270₽"
     
@@ -208,25 +177,17 @@ async def show_tariffs(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=tariffs_keyboard()
             )
-            await save_message(user_id, msg.message_id)
+            await save_bot_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
-        await save_message(user_id, msg.message_id)
+        await save_bot_message(user_id, msg.message_id)
 
-# ========== ПОДДЕРЖКА ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    # Удаляем старые сообщения бота
-    await delete_previous_messages(user_id, chat_id)
-    
-    # Удаляем сообщение пользователя с командой
-    try:
-        await message.delete()
-    except:
-        pass
+    await delete_bot_messages(user_id, chat_id)
     
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать", url=f"https://t.me/{ADMIN_USERNAME}")
@@ -242,10 +203,10 @@ async def support_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=builder.as_markup()
             )
-            await save_message(user_id, msg.message_id)
+            await save_bot_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
-        await save_message(user_id, msg.message_id)
+        await save_bot_message(user_id, msg.message_id)
 
 # ========== ЗАПУСК ==========
 async def main():
