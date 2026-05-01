@@ -37,7 +37,7 @@ conn.commit()
 bot_messages = {}  # {user_id: [message_id, ...]}
 
 async def delete_bot_messages(user_id, chat_id):
-    """Удаляет только сообщения бота (не кнопки и не команды пользователя)"""
+    """Удаляет только сообщения бота (не трогает кнопки и сообщения пользователя)"""
     if user_id in bot_messages:
         for msg_id in bot_messages[user_id]:
             try:
@@ -99,6 +99,7 @@ async def select_tariff(callback: types.CallbackQuery):
     await save_bot_message(user_id, msg.message_id)
     await callback.answer()
 
+# ========== ПРОФИЛЬ С ФОТО ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
@@ -120,9 +121,19 @@ async def profile_command(message: types.Message):
         f"После активации здесь появится информация о подписке."
     )
     
-    msg = await message.answer(profile_text, parse_mode="Markdown")
-    await save_bot_message(user_id, msg.message_id)
+    try:
+        with open("profile.jpg", "rb") as photo:
+            msg = await message.answer_photo(
+                photo=types.BufferedInputFile(photo.read(), filename="profile.jpg"),
+                caption=profile_text,
+                parse_mode="Markdown"
+            )
+            await save_bot_message(user_id, msg.message_id)
+    except:
+        msg = await message.answer(profile_text, parse_mode="Markdown")
+        await save_bot_message(user_id, msg.message_id)
 
+# ========== СТАРТ ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -160,6 +171,7 @@ async def start_command(message: types.Message):
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
         await save_bot_message(user_id, msg.message_id)
 
+# ========== ТАРИФЫ С ФОТО ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     user_id = message.from_user.id
@@ -182,6 +194,7 @@ async def show_tariffs(message: types.Message):
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
         await save_bot_message(user_id, msg.message_id)
 
+# ========== ПОДДЕРЖКА С ФОТО ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
     user_id = message.from_user.id
