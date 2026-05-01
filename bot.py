@@ -33,11 +33,30 @@ CREATE TABLE IF NOT EXISTS users (
 conn.commit()
 
 # ========== ХРАНИЛИЩА ==========
-main_message_id = {}      # ID главного сообщения с меню (не удаляем)
-temp_messages = {}        # ID временных сообщений (удаляем)
+main_message_id = {}      # ID главного сообщения с меню
+temp_messages = {}        # ID временных сообщений бота
+user_messages = {}        # ID сообщений пользователя
+
+async def delete_user_messages(user_id, chat_id):
+    """Удаляет сообщения пользователя"""
+    if user_id in user_messages:
+        for msg_id in user_messages[user_id]:
+            try:
+                await bot.delete_message(chat_id, msg_id)
+            except:
+                pass
+        user_messages[user_id] = []
+
+async def save_user_message(user_id, message_id):
+    """Сохраняет ID сообщения пользователя"""
+    if user_id not in user_messages:
+        user_messages[user_id] = []
+    user_messages[user_id].append(message_id)
+    if len(user_messages[user_id]) > 10:
+        user_messages[user_id] = user_messages[user_id][-10:]
 
 async def delete_temp_messages(user_id, chat_id):
-    """Удаляет только временные сообщения бота (не трогает главное меню)"""
+    """Удаляет временные сообщения бота"""
     if user_id in temp_messages:
         for msg_id in temp_messages[user_id]:
             try:
@@ -47,7 +66,7 @@ async def delete_temp_messages(user_id, chat_id):
         temp_messages[user_id] = []
 
 async def save_temp_message(user_id, message_id):
-    """Сохраняет ID временного сообщения"""
+    """Сохраняет ID временного сообщения бота"""
     if user_id not in temp_messages:
         temp_messages[user_id] = []
     temp_messages[user_id].append(message_id)
@@ -57,6 +76,11 @@ async def save_temp_message(user_id, message_id):
 async def save_main_message(user_id, message_id):
     """Сохраняет ID главного сообщения с меню"""
     main_message_id[user_id] = message_id
+
+async def delete_all_messages(user_id, chat_id):
+    """Удаляет всё: и сообщения пользователя, и временные сообщения бота"""
+    await delete_user_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
@@ -81,7 +105,11 @@ async def select_tariff(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
-    await delete_temp_messages(user_id, chat_id)
+    # Сохраняем сообщение пользователя (нажатие на кнопку)
+    await save_user_message(user_id, callback.message.message_id)
+    
+    # Удаляем всё
+    await delete_all_messages(user_id, chat_id)
     
     tariff = callback.data.split("_")[1]
     months = int(tariff)
@@ -108,7 +136,11 @@ async def profile_command(message: types.Message):
     username = message.from_user.username or "нет"
     first_name = message.from_user.first_name or ""
     
-    await delete_temp_messages(user_id, chat_id)
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем всё
+    await delete_all_messages(user_id, chat_id)
     
     profile_text = (
         f"👤 **Ваш профиль UniGate**\n\n"
@@ -140,8 +172,13 @@ async def start_command(message: types.Message):
     username = message.from_user.username
     first_name = message.from_user.first_name
     
-    await delete_temp_messages(user_id, chat_id)
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
     
+    # Удаляем всё
+    await delete_all_messages(user_id, chat_id)
+    
+    # Если есть сохранённое главное сообщение, удаляем его
     if user_id in main_message_id:
         try:
             await bot.delete_message(chat_id, main_message_id[user_id])
@@ -180,7 +217,11 @@ async def show_tariffs(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_temp_messages(user_id, chat_id)
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем всё
+    await delete_all_messages(user_id, chat_id)
     
     text = "💰 **Наши тарифы:**\n\n⭐ 1 месяц — 100₽\n🔥 2 месяца — 180₽\n💎 3 месяца — 270₽"
     
@@ -202,7 +243,11 @@ async def support_command(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_temp_messages(user_id, chat_id)
+    # Сохраняем сообщение пользователя
+    await save_user_message(user_id, message.message_id)
+    
+    # Удаляем всё
+    await delete_all_messages(user_id, chat_id)
     
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать", url=f"https://t.me/{ADMIN_USERNAME}")
