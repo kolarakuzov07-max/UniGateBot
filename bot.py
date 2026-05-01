@@ -21,7 +21,6 @@ PRICES = {1: 100, 2: 180, 3: 270}
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# База данных
 conn = sqlite3.connect("unigate.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute("""
@@ -33,26 +32,31 @@ CREATE TABLE IF NOT EXISTS users (
 """)
 conn.commit()
 
-# ========== ХРАНИЛИЩЕ ID СООБЩЕНИЙ БОТА ==========
-bot_messages = {}  # {user_id: [message_id, ...]}
+# ========== ХРАНИЛИЩА ==========
+main_message_id = {}      # ID главного сообщения с меню (не удаляем)
+temp_messages = {}        # ID временных сообщений (удаляем)
 
-async def delete_bot_messages(user_id, chat_id):
-    """Удаляет только сообщения бота (не трогает кнопки и сообщения пользователя)"""
-    if user_id in bot_messages:
-        for msg_id in bot_messages[user_id]:
+async def delete_temp_messages(user_id, chat_id):
+    """Удаляет только временные сообщения бота (не трогает главное меню)"""
+    if user_id in temp_messages:
+        for msg_id in temp_messages[user_id]:
             try:
                 await bot.delete_message(chat_id, msg_id)
             except:
                 pass
-        bot_messages[user_id] = []
+        temp_messages[user_id] = []
 
-async def save_bot_message(user_id, message_id):
-    """Сохраняет ID сообщения бота"""
-    if user_id not in bot_messages:
-        bot_messages[user_id] = []
-    bot_messages[user_id].append(message_id)
-    if len(bot_messages[user_id]) > 10:
-        bot_messages[user_id] = bot_messages[user_id][-10:]
+async def save_temp_message(user_id, message_id):
+    """Сохраняет ID временного сообщения"""
+    if user_id not in temp_messages:
+        temp_messages[user_id] = []
+    temp_messages[user_id].append(message_id)
+    if len(temp_messages[user_id]) > 10:
+        temp_messages[user_id] = temp_messages[user_id][-10:]
+
+async def save_main_message(user_id, message_id):
+    """Сохраняет ID главного сообщения с меню"""
+    main_message_id[user_id] = message_id
 
 # ========== КЛАВИАТУРЫ ==========
 def main_keyboard():
@@ -77,8 +81,7 @@ async def select_tariff(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     
-    # Удаляем старые сообщения бота
-    await delete_bot_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     tariff = callback.data.split("_")[1]
     months = int(tariff)
@@ -91,15 +94,13 @@ async def select_tariff(callback: types.CallbackQuery):
         f"📌 Получатель: `{CARD_HOLDER}`\n"
         f"📌 Сумма: {amount}₽\n"
         f"📌 Комментарий: `{user_id}`\n\n"
-        f"✅ **После перевода** напиши @{ADMIN_USERNAME} и пришли чек.\n\n"
-        f"Я проверю и активирую подписку!"
+        f"✅ **После перевода** напиши @{ADMIN_USERNAME} и пришли чек."
     )
     
     msg = await callback.message.answer(text, parse_mode="Markdown")
-    await save_bot_message(user_id, msg.message_id)
+    await save_temp_message(user_id, msg.message_id)
     await callback.answer()
 
-# ========== ПРОФИЛЬ С ФОТО ==========
 @dp.message(lambda m: m.text == "👤 Профиль")
 async def profile_command(message: types.Message):
     user_id = message.from_user.id
@@ -107,7 +108,7 @@ async def profile_command(message: types.Message):
     username = message.from_user.username or "нет"
     first_name = message.from_user.first_name or ""
     
-    await delete_bot_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     profile_text = (
         f"👤 **Ваш профиль UniGate**\n\n"
@@ -117,8 +118,7 @@ async def profile_command(message: types.Message):
         f"💡 **Как получить доступ:**\n"
         f"1. Нажми «💳 Тарифы»\n"
         f"2. Выбери тариф\n"
-        f"3. Оплати и напиши @{ADMIN_USERNAME}\n\n"
-        f"После активации здесь появится информация о подписке."
+        f"3. Оплати и напиши @{ADMIN_USERNAME}"
     )
     
     try:
@@ -128,12 +128,11 @@ async def profile_command(message: types.Message):
                 caption=profile_text,
                 parse_mode="Markdown"
             )
-            await save_bot_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await message.answer(profile_text, parse_mode="Markdown")
-        await save_bot_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
 
-# ========== СТАРТ ==========
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -141,9 +140,14 @@ async def start_command(message: types.Message):
     username = message.from_user.username
     first_name = message.from_user.first_name
     
-    await delete_bot_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
-    # Сохраняем пользователя в БД
+    if user_id in main_message_id:
+        try:
+            await bot.delete_message(chat_id, main_message_id[user_id])
+        except:
+            pass
+    
     cursor.execute("INSERT OR IGNORE INTO users (user_id, username, first_name) VALUES (?, ?, ?)", (user_id, username, first_name))
     conn.commit()
     
@@ -166,18 +170,17 @@ async def start_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=main_keyboard()
             )
-            await save_bot_message(user_id, msg.message_id)
+            await save_main_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=main_keyboard())
-        await save_bot_message(user_id, msg.message_id)
+        await save_main_message(user_id, msg.message_id)
 
-# ========== ТАРИФЫ С ФОТО ==========
 @dp.message(lambda m: m.text == "💳 Тарифы")
 async def show_tariffs(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_bot_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     text = "💰 **Наши тарифы:**\n\n⭐ 1 месяц — 100₽\n🔥 2 месяца — 180₽\n💎 3 месяца — 270₽"
     
@@ -189,18 +192,17 @@ async def show_tariffs(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=tariffs_keyboard()
             )
-            await save_bot_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
-        await save_bot_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
 
-# ========== ПОДДЕРЖКА С ФОТО ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
 async def support_command(message: types.Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
-    await delete_bot_messages(user_id, chat_id)
+    await delete_temp_messages(user_id, chat_id)
     
     builder = InlineKeyboardBuilder()
     builder.button(text="📩 Написать", url=f"https://t.me/{ADMIN_USERNAME}")
@@ -216,10 +218,10 @@ async def support_command(message: types.Message):
                 parse_mode="Markdown",
                 reply_markup=builder.as_markup()
             )
-            await save_bot_message(user_id, msg.message_id)
+            await save_temp_message(user_id, msg.message_id)
     except:
         msg = await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
-        await save_bot_message(user_id, msg.message_id)
+        await save_temp_message(user_id, msg.message_id)
 
 # ========== ЗАПУСК ==========
 async def main():
