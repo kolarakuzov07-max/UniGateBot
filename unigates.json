@@ -1,0 +1,114 @@
+{
+  "dns" : {
+    "servers" : [
+      "1.1.1.1",
+      "1.0.0.1"
+    ]
+  },
+  "inbounds" : [
+    {
+      "listen" : "127.0.0.1",
+      "port" : 10808,
+      "protocol" : "socks",
+      "settings" : {
+        "udp" : true
+      },
+      "sniffing" : {
+        "destOverride" : [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled" : true
+      },
+      "tag" : "socks"
+    },
+    {
+      "listen" : "127.0.0.1",
+      "port" : 10809,
+      "protocol" : "http",
+      "sniffing" : {
+        "destOverride" : [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled" : true
+      },
+      "tag" : "http"
+    }
+  ],
+  "log" : {
+    "access" : "\/private\/var\/mobile\/Containers\/Shared\/AppGroup\/F031E952-47C7-4CE4-B68B-E633E6F5EAB6\/Library\/Application Support\/Xray\/logs\/access.log",
+    "dnsLog" : true,
+    "loglevel" : "Warning"
+  },
+  "outbounds" : [
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "lte.cxhub.su",
+            "port" : 2012,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "120dba92-92e2-4427-a06a-fd22259db815"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "grpcSettings" : {
+          "authority" : "",
+          "mode" : true,
+          "serviceName" : "cloud"
+        },
+        "network" : "grpc",
+        "realitySettings" : {
+          "fingerprint" : "chrome",
+          "publicKey" : "P0fQAbHaRJ6aF8yExwqISCB0ClTrGFhZe7hGDO8YnX4",
+          "serverName" : "cloud.mail.ru",
+          "shortId" : "1413cc6a376b5257"
+        },
+        "security" : "reality"
+      },
+      "tag" : "proxy"
+    },
+    {
+      "protocol" : "freedom",
+      "tag" : "direct"
+    },
+    {
+      "protocol" : "blackhole",
+      "tag" : "block"
+    }
+  ],
+  "remarks" : "🇺🇸UniGates",
+  "routing" : {
+    "domainStrategy" : "IPIfNonMatch",
+    "rules" : [
+      {
+        "outboundTag" : "direct",
+        "protocol" : [
+          "bittorrent"
+        ]
+      },
+      {
+        "ip" : [
+          "geoip:private"
+        ],
+        "outboundTag" : "direct"
+      },
+      {
+        "domain" : [
+          "geosite:private"
+        ],
+        "outboundTag" : "direct"
+      }
+    ]
+  }
+}
