@@ -185,7 +185,6 @@ async def payment_received(callback: types.CallbackQuery):
     await delete_user_messages(user_id, chat_id)
     await delete_temp_messages(user_id, chat_id)
     
-    # Отправляем уведомление админу с информацией о партнёре
     cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (user_id,))
     ref_result = cursor.fetchone()
     referrer_id = ref_result[0] if ref_result else None
@@ -197,7 +196,7 @@ async def payment_received(callback: types.CallbackQuery):
             f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
             f"📆 Тариф: {months} месяц(ев)\n"
             f"💵 Сумма: {amount}₽\n"
-            f"🔗 Партнёр: {f'[@](tg://user?id={referrer_id})' if referrer_id else 'Нет'}\n\n"
+            f"🔗 Партнёр: {f'[{referrer_id}](tg://user?id={referrer_id})' if referrer_id else 'Нет'}\n\n"
             f"✅ После проверки введи:\n"
             f"`/activate {user_id} {months}`",
             parse_mode="Markdown"
@@ -267,14 +266,14 @@ async def profile_command(message: types.Message):
     
     profile_text = (
         f"👤 **Ваш профиль UniGate**\n\n"
-        f"🆔 **Telegram ID:** `{user_id}`\n"
-        f"📝 **Имя:** {first_name}\n"
-        f"🔹 **Username:** @{username}\n\n"
-        f"📅 **Статус подписки:** {status}\n\n"
-        f"👥 **Реферальная система:**\n"
-        f"└ Приглашено друзей: **{referral_clicks}**\n"
-        f"└ Оплатило друзей: **{referral_paid}**\n"
-        f"└ Ваша ссылка: `{referral_link}`"
+        f"🆔 Telegram ID: {user_id}\n"
+        f"📝 Имя: {first_name}\n"
+        f"🔹 Username: @{username}\n\n"
+        f"📅 Статус подписки: {status}\n\n"
+        f"👥 Реферальная система:\n"
+        f"└ Приглашено друзей: {referral_clicks}\n"
+        f"└ Оплатило друзей: {referral_paid}\n"
+        f"└ Ваша ссылка: {referral_link}"
     )
     
     try:
@@ -288,7 +287,7 @@ async def profile_command(message: types.Message):
     except:
         await message.answer(profile_text, parse_mode="Markdown", reply_markup=reply_markup)
 
-# ========== ТРАФИК (СТАТИСТИКА ДЛЯ АРБИТРАЖНИКОВ) ==========
+# ========== ТРАФИК ==========
 @dp.message(lambda m: m.text == "⚡️ Трафик")
 async def traffic_stats(message: types.Message):
     user_id = message.from_user.id
@@ -299,37 +298,34 @@ async def traffic_stats(message: types.Message):
     await delete_temp_messages(user_id, chat_id)
     
     if user_id in ADMIN_IDS:
-        # Админ видит статистику по ВСЕМ партнёрам
         cursor.execute("SELECT user_id, username, first_name, referral_clicks, referral_paid FROM users WHERE referral_clicks > 0 OR referral_paid > 0 ORDER BY referral_paid DESC")
         partners = cursor.fetchall()
         
         if not partners:
-            text = "📊 **Статистика по трафику**\n\nПока нет ни одного партнёра с переходами."
+            text = "📊 Статистика по трафику\n\nПока нет ни одного партнёра с переходами."
         else:
-            text = "📊 **Статистика по партнёрам**\n\n"
+            text = "📊 Статистика по партнёрам\n\n"
             for p in partners:
                 puid, pusername, pfirst, pclicks, ppaid = p
                 name = pfirst if pfirst else str(puid)
                 text += f"👤 {name} (@{pusername or 'нет'})\n└ Переходов: {pclicks}, Оплат: {ppaid}\n\n"
     else:
-        # Обычный пользователь видит только свою статистику
         cursor.execute("SELECT referral_clicks, referral_paid FROM users WHERE user_id = ?", (user_id,))
         result = cursor.fetchone()
         clicks = result[0] if result else 0
         paid = result[1] if result else 0
         
         text = (
-            f"📊 **Ваша статистика трафика**\n\n"
-            f"👥 Переходов по вашей ссылке: **{clicks}**\n"
-            f"💰 Оплат от приглашённых: **{paid}**\n\n"
+            f"📊 Ваша статистика трафика\n\n"
+            f"👥 Переходов по вашей ссылке: {clicks}\n"
+            f"💰 Оплат от приглашённых: {paid}\n\n"
             f"💡 Как это работает?\n"
-            f"Вы получаете **20%** от каждого платежа вашего друга!\n\n"
+            f"Вы получаете 20% от каждого платежа вашего друга!\n\n"
             f"🔗 Ваша ссылка:\n"
-            f"`https://t.me/{BOT_USERNAME}?start={user_id}`"
+            f"https://t.me/{BOT_USERNAME}?start={user_id}"
         )
     
-    msg = await message.answer(text, parse_mode="Markdown")
-    await save_temp_message(user_id, msg.message_id)
+    await message.answer(text, parse_mode="Markdown")
 
 # ========== СТАРТ ==========
 @dp.message(Command("start"))
@@ -363,7 +359,6 @@ async def start_command(message: types.Message):
     if not existing:
         cursor.execute("INSERT INTO users (user_id, username, first_name, referrer_id) VALUES (?, ?, ?, ?)", (user_id, username, first_name, referrer_id))
         if referrer_id and referrer_id != user_id:
-            # Увеличиваем счётчик переходов у реферера
             cursor.execute("UPDATE users SET referral_clicks = referral_clicks + 1 WHERE user_id = ?", (referrer_id,))
             await bot.send_message(referrer_id, f"🎉 По вашей ссылке зарегистрировался новый пользователь @{username}!")
         conn.commit()
@@ -372,14 +367,14 @@ async def start_command(message: types.Message):
         conn.commit()
     
     text = (
-        "🚪 **Добро пожаловать в UniGate!**\n\n"
-        "✨ **Почему выбирают нас:**\n"
-        "• 🚀 **Молниеносная скорость**\n"
-        "• 🔒 **Абсолютная приватность**\n"
-        "• 🌍 **Доступ к любым сайтам**\n"
-        "• 📱 **Один клик** для подключения\n\n"
-        "🎁 **Первый месяц — всего 100₽!**\n\n"
-        "👇 **Выбери действие:**"
+        "🚪 Добро пожаловать в UniGate!\n\n"
+        "✨ Почему выбирают нас:\n"
+        "• 🚀 Молниеносная скорость\n"
+        "• 🔒 Абсолютная приватность\n"
+        "• 🌍 Доступ к любым сайтам\n"
+        "• 📱 Один клик для подключения\n\n"
+        "🎁 Первый месяц — всего 100₽!\n\n"
+        "👇 Выбери действие:"
     )
     
     try:
@@ -418,8 +413,8 @@ async def get_key(message: types.Message):
         if end_date > datetime.now():
             connection_string = get_test_key(user_id)
             await message.answer(
-                f"🔑 **Твой VPN-ключ:**\n\n`{connection_string}`\n\n"
-                f"📱 **Инструкция:**\n"
+                f"🔑 Твой VPN-ключ:\n\n{connection_string}\n\n"
+                f"📱 Инструкция:\n"
                 f"1. Нажми «📋 Скопировать ключ»\n"
                 f"2. Открой Happ → «+» → «Из буфера обмена»",
                 parse_mode="Markdown",
@@ -428,7 +423,7 @@ async def get_key(message: types.Message):
             return
     
     await message.answer(
-        "❌ **У тебя нет активной подписки.**\n\n"
+        "❌ У тебя нет активной подписки.\n\n"
         "Нажми «💳 Тарифы» и выбери подходящий план.",
         parse_mode="Markdown"
     )
@@ -444,25 +439,23 @@ async def show_tariffs(message: types.Message):
     await delete_temp_messages(user_id, chat_id)
     
     text = (
-        "💰 **Наши тарифы:**\n\n"
-        "⭐ **1 месяц** — 100₽\n"
-        "🔥 **2 месяца** — 180₽\n"
-        "💎 **3 месяца** — 270₽\n\n"
-        "👇 **Выбери подходящий тариф:**"
+        "💰 Наши тарифы:\n\n"
+        "⭐ 1 месяц — 100₽\n"
+        "🔥 2 месяца — 180₽\n"
+        "💎 3 месяца — 270₽\n\n"
+        "👇 Выбери подходящий тариф:"
     )
     
     try:
         with open("tariffs.jpg", "rb") as photo:
-            msg = await message.answer_photo(
+            await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="tariffs.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=tariffs_keyboard()
             )
-            await save_temp_message(user_id, msg.message_id)
     except:
-        msg = await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
-        await save_temp_message(user_id, msg.message_id)
+        await message.answer(text, parse_mode="Markdown", reply_markup=tariffs_keyboard())
 
 # ========== ПОДДЕРЖКА ==========
 @dp.message(lambda m: m.text == "📞 Поддержка")
@@ -479,20 +472,18 @@ async def support_command(message: types.Message):
     builder.button(text="🏠 Главное меню", callback_data="back_to_menu")
     builder.adjust(1)
     
-    text = f"📞 **Служба поддержки UniGate**\n\nВозникли проблемы? Напиши @{ADMIN_USERNAME}!"
+    text = f"📞 Служба поддержки UniGate\n\nВозникли проблемы? Напиши @{ADMIN_USERNAME}!"
     
     try:
         with open("support.jpg", "rb") as photo:
-            msg = await message.answer_photo(
+            await message.answer_photo(
                 photo=types.BufferedInputFile(photo.read(), filename="support.jpg"),
                 caption=text,
                 parse_mode="Markdown",
                 reply_markup=builder.as_markup()
             )
-            await save_temp_message(user_id, msg.message_id)
     except:
-        msg = await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
-        await save_temp_message(user_id, msg.message_id)
+        await message.answer(text, parse_mode="Markdown", reply_markup=builder.as_markup())
 
 # ========== АДМИН-КОМАНДА ==========
 @dp.message(Command("activate"))
@@ -518,7 +509,6 @@ async def activate_user(message: types.Message):
     """, (user_id, end_date.isoformat(), end_date.isoformat()))
     conn.commit()
     
-    # Проверяем, есть ли у пользователя реферер, и увеличиваем счётчик оплат
     cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (user_id,))
     ref_result = cursor.fetchone()
     referrer_id = ref_result[0] if ref_result else None
@@ -526,11 +516,9 @@ async def activate_user(message: types.Message):
     if referrer_id:
         cursor.execute("UPDATE users SET referral_paid = referral_paid + 1 WHERE user_id = ?", (referrer_id,))
         conn.commit()
-        
-        # Отправляем уведомление партнёру
         await bot.send_message(
             referrer_id,
-            f"🎉 **По вашей ссылке оформили подписку!**\n\n"
+            f"🎉 По вашей ссылке оформили подписку!\n\n"
             f"Пользователь @{user_id} активировал подписку на {months} месяц(ев).\n"
             f"Ваш счётчик оплат увеличился."
         )
@@ -539,9 +527,9 @@ async def activate_user(message: types.Message):
     
     await bot.send_message(
         user_id,
-        f"✅ **Подписка активирована на {months} месяц(ев)!**\n\n"
-        f"🔑 **Твой VPN-ключ:**\n`{connection_string}`\n\n"
-        f"📱 **Инструкция:**\n"
+        f"✅ Подписка активирована на {months} месяц(ев)!\n\n"
+        f"🔑 Твой VPN-ключ:\n{connection_string}\n\n"
+        f"📱 Инструкция:\n"
         f"1. Нажми «📋 Скопировать ключ»\n"
         f"2. Открой Happ → «+» → «Из буфера обмена»",
         parse_mode="Markdown",
