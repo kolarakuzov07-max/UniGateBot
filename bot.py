@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
 
 # ========== НАСТРОЙКИ ==========
-BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"  # ← проверь токен
+BOT_TOKEN = "8598128447:AAHo21RNRKwP8t2CUAIVcK-QptICFCTBqt4"  # ← проверь токен
 ADMIN_IDS = [1446300344]
 ADMIN_USERNAME = "p2pshil"
 BOT_USERNAME = "UniGates_bot"
