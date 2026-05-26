@@ -1,4 +1,3 @@
-
 import asyncio
 import sqlite3
 from datetime import datetime, timedelta
@@ -8,13 +7,16 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
 
 # ========== НАСТРОЙКИ ==========
-BOT_TOKEN = "8598128447:AAHo21RNRKwP8t2CUAIVcK-QptICFCTBqt4"  # ← проверь токен
+BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
 ADMIN_IDS = [1446300344]
 ADMIN_USERNAME = "p2pshil"
 BOT_USERNAME = "UniGates_bot"
 
 CARD_NUMBER = "2200 1523 0320 4112"
 CARD_HOLDER = "SAVELII MINKOV"
+
+# ========== ССЫЛКА НА ПОДПИСКУ (INCY / Happ) ==========
+SUBSCRIPTION_URL = "https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/UniGates.json"
 
 # ========== ЦЕНЫ ТАРИФОВ ==========
 PRICES = {1: 100, 2: 180, 3: 270}
@@ -336,8 +338,7 @@ async def get_key(message: types.Message):
     if result and result[0]:
         end_date = datetime.fromisoformat(result[0])
         if end_date > datetime.now():
-            connection_string = get_test_key(user_id)
-            await message.answer(f"🔑 Твой VPN-ключ:\n\n{connection_string}\n\n📱 Инструкция:\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»", reply_markup=copy_keyboard(connection_string))
+            await message.answer(f"🔗 Твоя подписка:\n\n{SUBSCRIPTION_URL}\n\n📱 Инструкция:\n1. Скопируй ссылку\n2. Открой INCY или Happ → «+» → «Импорт по URL»\n3. Вставь ссылку и подключись")
             return
     await message.answer("❌ У тебя нет активной подписки.\n\nНажми «💳 Тарифы» и выбери подходящий план.")
 
@@ -396,8 +397,9 @@ async def activate_user(message: types.Message):
         cursor.execute("UPDATE users SET referral_paid = referral_paid + 1 WHERE user_id = ?", (referrer_id,))
         conn.commit()
         await bot.send_message(referrer_id, f"🎉 По вашей ссылке оформили подписку!\n\nПользователь @{user_id} активировал подписку на {months} месяц(ев).\nВаш счётчик оплат увеличился.")
-    connection_string = get_test_key(user_id)
-    await bot.send_message(user_id, f"✅ Подписка активирована на {months} месяц(ев)!\n\n🔑 Твой VPN-ключ:\n{connection_string}\n\n📱 Инструкция:\n1. Нажми «📋 Скопировать ключ»\n2. Открой Happ → «+» → «Из буфера обмена»", reply_markup=copy_keyboard(connection_string))
+    
+    # Отправляем пользователю ССЫЛКУ НА ПОДПИСКУ
+    await bot.send_message(user_id, f"✅ Подписка активирована на {months} месяц(ев)!\n\n🔗 Твоя подписка:\n{SUBSCRIPTION_URL}\n\n📱 Инструкция:\n1. Скопируй ссылку\n2. Открой INCY или Happ → «+» → «Импорт по URL»\n3. Вставь ссылку и подключись")
     await message.answer(f"✅ Подписка активирована для {user_id} на {months} месяц(ев)")
 
 # ========== ЗАПУСК ==========
