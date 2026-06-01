@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 import os
 
 # ========== НАСТРОЙКИ ==========
-BOT_TOKEN = "8598128447:AAHo21RNRKwP8t2CUAIVcK-QptICFCTBqt4"
+BOT_TOKEN = "8598128447:AAHupd0ltwgCOt592dPu09sKswEjGtMK3Lo"
 ADMIN_IDS = [1446300344]
 ADMIN_USERNAME = "p2pshil"
 BOT_USERNAME = "UniGates_bot"
@@ -16,7 +16,7 @@ CARD_NUMBER = "2200 1523 0320 4112"
 CARD_HOLDER = "SAVELII MINKOV"
 
 # ========== ССЫЛКА НА ПОДПИСКУ ==========
-SUBSCRIPTION_URL = "https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/UniGates.json"
+SUBSCRIPTION_URL = "https://raw.githubusercontent.com/kolarakuzov07-max/UniGateBot/refs/heads/main/uniigatess.json"
 
 # ========== ЦЕНЫ ТАРИФОВ ==========
 PRICES = {1: 100, 2: 180, 3: 270}
