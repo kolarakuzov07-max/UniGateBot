@@ -97,7 +97,7 @@
       "tag" : "block"
     }
   ],
-  "remarks" : "🇫🇲 👍🏻Белые списки (50гб\/мес) #1",
+  "remarks" : "🇫🇲 Новый UniGates",
   "routing" : {
     "domainMatcher" : "hybrid",
     "domainStrategy" : "IPIfNonMatch",
