@@ -1,114 +1,111 @@
-Вот ваш исправленный JSON-файл. Я привёл к корректному формату все строки, убрал разрывы внутри доменов (например, `"domain:av\n\n\nru"` → `"domain:av.ru"`), удалил дубликаты и лишние вставки, а также закрыл незавершённые строки. Теперь файл полностью валидный и готов к вставке.
-
-```json
 {
-  "dns": {
-    "queryStrategy": "UseIP",
-    "servers": [
-      "https://8.8.8.8/dns-query",
-      "https://8.8.4.4/dns-query"
+  "dns" : {
+    "queryStrategy" : "UseIP",
+    "servers" : [
+      "https:\/\/8.8.8.8\/dns-query",
+      "https:\/\/8.8.4.4\/dns-query"
     ]
   },
-  "inbounds": [
+  "inbounds" : [
     {
-      "listen": "127.0.0.1",
-      "port": 10808,
-      "protocol": "socks",
-      "settings": {
-        "auth": "noauth",
-        "udp": true
+      "listen" : "127.0.0.1",
+      "port" : 10808,
+      "protocol" : "socks",
+      "settings" : {
+        "auth" : "noauth",
+        "udp" : true
       },
-      "sniffing": {
-        "destOverride": [
+      "sniffing" : {
+        "destOverride" : [
           "http",
           "tls",
           "quic"
         ],
-        "enabled": true,
-        "routeOnly": true
+        "enabled" : true,
+        "routeOnly" : true
       },
-      "tag": "socks"
+      "tag" : "socks"
     },
     {
-      "listen": "127.0.0.1",
-      "port": 10809,
-      "protocol": "http",
-      "settings": {
-        "allowTransparent": false
+      "listen" : "127.0.0.1",
+      "port" : 10809,
+      "protocol" : "http",
+      "settings" : {
+        "allowTransparent" : false
       },
-      "sniffing": {
-        "destOverride": [
+      "sniffing" : {
+        "destOverride" : [
           "http",
           "tls",
           "quic"
         ],
-        "enabled": true,
-        "routeOnly": true
+        "enabled" : true,
+        "routeOnly" : true
       },
-      "tag": "http"
+      "tag" : "http"
     }
   ],
-  "log": {
-    "access": "/private/var/mobile/Containers/Shared/AppGroup/F031E952-47C7-4CE4-B68B-E633E6F5EAB6/Library/Application Support/Xray/logs/access.log",
-    "dnsLog": true,
-    "loglevel": "Warning"
+  "log" : {
+    "access" : "\/private\/var\/mobile\/Containers\/Shared\/AppGroup\/F031E952-47C7-4CE4-B68B-E633E6F5EAB6\/Library\/Application Support\/Xray\/logs\/access.log",
+    "dnsLog" : true,
+    "loglevel" : "Warning"
   },
-  "outbounds": [
+  "outbounds" : [
     {
-      "protocol": "vless",
-      "settings": {
-        "vnext": [
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
           {
-            "address": "nl.flowblows.ru",
-            "port": 8443,
-            "users": [
+            "address" : "nl.flowblows.ru",
+            "port" : 8443,
+            "users" : [
               {
-                "encryption": "none",
-                "flow": "",
-                "id": "29c46e15-5adc-461a-add7-4c8e834bb488"
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "29c46e15-5adc-461a-add7-4c8e834bb488"
               }
             ]
           }
         ]
       },
-      "streamSettings": {
-        "network": "xhttp",
-        "realitySettings": {
-          "fingerprint": "qq",
-          "publicKey": "TwpWfOMzmy2fWPi1Dd1hODInGVEruBfBuH2wmqSYcHg",
-          "serverName": "nl.flowblows.ru"
+      "streamSettings" : {
+        "network" : "xhttp",
+        "realitySettings" : {
+          "fingerprint" : "qq",
+          "publicKey" : "TwpWfOMzmy2fWPi1Dd1hODInGVEruBfBuH2wmqSYcHg",
+          "serverName" : "nl.flowblows.ru"
         },
-        "security": "reality",
-        "xhttpSettings": {
-          "host": "nl.flowblows.ru",
-          "mode": "auto"
+        "security" : "reality",
+        "xhttpSettings" : {
+          "host" : "nl.flowblows.ru",
+          "mode" : "auto"
         }
       },
-      "tag": "proxy"
+      "tag" : "proxy"
     },
     {
-      "protocol": "freedom",
-      "tag": "direct"
+      "protocol" : "freedom",
+      "tag" : "direct"
     },
     {
-      "protocol": "blackhole",
-      "tag": "block"
+      "protocol" : "blackhole",
+      "tag" : "block"
     }
   ],
-  "remarks": " 🇳🇱 Нидерланды ✅🌟",
-  "routing": {
-    "domainMatcher": "hybrid",
-    "domainStrategy": "IPIfNonMatch",
-    "rules": [
+  "remarks" : " 🇳🇱 Нидерланды ✅🌟",
+  "routing" : {
+    "domainMatcher" : "hybrid",
+    "domainStrategy" : "IPIfNonMatch",
+    "rules" : [
       {
-        "outboundTag": "direct",
-        "protocol": [
+        "outboundTag" : "direct",
+        "protocol" : [
           "bittorrent"
         ],
-        "type": "field"
+        "type" : "field"
       },
       {
-        "domain": [
+        "domain" : [
           "max.ru",
           "domain:1c-bitrix.ru",
           "domain:1c.ru",
@@ -304,6 +301,7 @@
           "domain:mari-el.ru",
           "domain:mari.ru",
           "domain:marine.ru",
+          "domain:max.ru",
           "domain:medtrum.eu",
           "domain:medtrum.ru",
           "domain:megafon.ru",
@@ -356,6 +354,7 @@
           "domain:pochta.ru",
           "domain:psbank.ru",
           "domain:psblog.ru",
+          "domain:psk",
           "domain:psk.ru",
           "domain:pskov.ru",
           "domain:ptz.ru",
@@ -611,9 +610,8 @@
           "domain:st.max.ru",
           "domain:tracker-api.vk-analytics.ru"
         ],
-        "outboundTag": "direct"
+        "outboundTag" : "direct"
       }
     ]
   }
 }
-```
