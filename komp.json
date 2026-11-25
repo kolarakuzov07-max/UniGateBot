@@ -1,1 +1,467 @@
+{
+  "burstObservatory" : {
+    "pingConfig" : {
+      "connectivity" : "http:\/\/cp.cloudflare.com\/generate_204",
+      "destination" : "http:\/\/cp.cloudflare.com\/generate_204",
+      "interval" : "10m",
+      "sampling" : 1,
+      "timeout" : "5s"
+    },
+    "subjectSelector" : [
+      "proxy"
+    ]
+  },
+  "dns" : {
+    "queryStrategy" : "UseIPv4",
+    "servers" : [
+      "https:\/\/8.8.8.8\/dns-query",
+      "https:\/\/8.8.4.4\/dns-query",
+      "https:\/\/1.1.1.1\/dns-query",
+      "https:\/\/1.0.0.1\/dns-query"
+    ],
+    "tag" : "dns-inbound"
+  },
+  "inbounds" : [
+    {
+      "listen" : "127.0.0.1",
+      "port" : 10808,
+      "protocol" : "socks",
+      "settings" : {
+        "auth" : "noauth",
+        "udp" : true,
+        "userLevel" : 8
+      },
+      "sniffing" : {
+        "destOverride" : [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled" : true,
+        "routeOnly" : true
+      },
+      "tag" : "socks"
+    },
+    {
+      "listen" : "127.0.0.1",
+      "port" : 10809,
+      "protocol" : "http",
+      "settings" : {
+        "allowTransparent" : false,
+        "userLevel" : 8
+      },
+      "sniffing" : {
+        "destOverride" : [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled" : true,
+        "routeOnly" : true
+      },
+      "tag" : "http"
+    }
+  ],
+  "log" : {
+    "access" : "\/private\/var\/mobile\/Containers\/Shared\/AppGroup\/F031E952-47C7-4CE4-B68B-E633E6F5EAB6\/Library\/Application Support\/Xray\/logs\/access.log",
+    "dnsLog" : true,
+    "loglevel" : "Warning"
+  },
+  "outbounds" : [
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "images.happylumenplot.org",
+            "port" : 443,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "f87a41b5-bc02-4fa6-8777-a1e8303ab191"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "grpcSettings" : {
+          "authority" : "",
+          "mode" : false,
+          "serviceName" : "media.v2.ObjectService"
+        },
+        "network" : "grpc",
+        "realitySettings" : {
+          "fingerprint" : "firefox",
+          "publicKey" : "rJX1BTUJa7hJtmw2W_KqqI0S6wlE5kJqPUWEGceQe0A",
+          "serverName" : "images.happylumenplot.org",
+          "shortId" : "24fc9fbbc46338ea"
+        },
+        "security" : "reality",
+        "sockopt" : {
+          "tcpKeepAliveIdle" : 30,
+          "tcpKeepAliveInterval" : 10,
+          "tcpUserTimeout" : 15000
+        }
+      },
+      "tag" : "proxy"
+    },
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "rpc.happylumenplot.org",
+            "port" : 443,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "f87a41b5-bc02-4fa6-8777-a1e8303ab191"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "grpcSettings" : {
+          "authority" : "",
+          "mode" : false,
+          "serviceName" : "hub.v1.ApiService"
+        },
+        "network" : "grpc",
+        "realitySettings" : {
+          "fingerprint" : "firefox",
+          "publicKey" : "kfJ2VbSF9OylqDaPu3ZN3_36JSdaMdPFYHG5EWl7shY",
+          "serverName" : "rpc.happylumenplot.org",
+          "shortId" : "99afe86e8a866dba"
+        },
+        "security" : "reality",
+        "sockopt" : {
+          "tcpKeepAliveIdle" : 30,
+          "tcpKeepAliveInterval" : 10,
+          "tcpUserTimeout" : 15000
+        }
+      },
+      "tag" : "proxy-2"
+    },
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "stream.happylumenplot.org",
+            "port" : 443,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "f87a41b5-bc02-4fa6-8777-a1e8303ab191"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "grpcSettings" : {
+          "authority" : "",
+          "mode" : false,
+          "serviceName" : "edge.v2.MetricsService"
+        },
+        "network" : "grpc",
+        "realitySettings" : {
+          "fingerprint" : "firefox",
+          "publicKey" : "Sv-l5K5JBnpttGYyA4ihGMV6AOzioHcMEQxJBC2EulQ",
+          "serverName" : "stream.happylumenplot.org",
+          "shortId" : "b9a1211060c936ce"
+        },
+        "security" : "reality",
+        "sockopt" : {
+          "tcpKeepAliveIdle" : 30,
+          "tcpKeepAliveInterval" : 10,
+          "tcpUserTimeout" : 15000
+        }
+      },
+      "tag" : "proxy-3"
+    },
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "static.happylumenplot.org",
+            "port" : 443,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "f87a41b5-bc02-4fa6-8777-a1e8303ab191"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "grpcSettings" : {
+          "authority" : "",
+          "mode" : false,
+          "serviceName" : "gw.v1.MetricsService"
+        },
+        "network" : "grpc",
+        "realitySettings" : {
+          "fingerprint" : "firefox",
+          "publicKey" : "gOdiy7f4FuhUHadxsGPftERpZV08KPB2nqGRtfS-jh0",
+          "serverName" : "static.happylumenplot.org",
+          "shortId" : "22708ebf62284e21"
+        },
+        "security" : "reality",
+        "sockopt" : {
+          "tcpKeepAliveIdle" : 30,
+          "tcpKeepAliveInterval" : 10,
+          "tcpUserTimeout" : 15000
+        }
+      },
+      "tag" : "proxy-4"
+    },
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "core.happylumenplot.org",
+            "port" : 443,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "f87a41b5-bc02-4fa6-8777-a1e8303ab191"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "grpcSettings" : {
+          "authority" : "",
+          "mode" : false,
+          "serviceName" : "hub.v1.ObjectService"
+        },
+        "network" : "grpc",
+        "realitySettings" : {
+          "fingerprint" : "firefox",
+          "publicKey" : "ALAKClsk3NTZevmQAH7od4b-eRsWy_KZXZgbQF9Pbi0",
+          "serverName" : "core.happylumenplot.org",
+          "shortId" : "1ba2fd051cf70b5d"
+        },
+        "security" : "reality",
+        "sockopt" : {
+          "tcpKeepAliveIdle" : 30,
+          "tcpKeepAliveInterval" : 10,
+          "tcpUserTimeout" : 15000
+        }
+      },
+      "tag" : "proxy-5"
+    },
+    {
+      "protocol" : "vless",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "tracker.happylumenplot.org",
+            "port" : 443,
+            "users" : [
+              {
+                "encryption" : "none",
+                "flow" : "",
+                "id" : "f87a41b5-bc02-4fa6-8777-a1e8303ab191"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings" : {
+        "grpcSettings" : {
+          "authority" : "",
+          "mode" : false,
+          "serviceName" : "edge.v1.StreamService"
+        },
+        "network" : "grpc",
+        "realitySettings" : {
+          "fingerprint" : "firefox",
+          "publicKey" : "83nCPechXO--tzf6dAFWqD3fi2uPEU9PynjeqNq_ey4",
+          "serverName" : "tracker.happylumenplot.org",
+          "shortId" : "01386e927d1c781e"
+        },
+        "security" : "reality",
+        "sockopt" : {
+          "tcpKeepAliveIdle" : 30,
+          "tcpKeepAliveInterval" : 10,
+          "tcpUserTimeout" : 15000
+        }
+      },
+      "tag" : "proxy-6"
+    },
+    {
+      "protocol" : "freedom",
+      "settings" : {
+        "domainStrategy" : "UseIP"
+      },
+      "tag" : "direct"
+    },
+    {
+      "protocol" : "blackhole",
+      "tag" : "block"
+    },
+    {
+      "protocol" : "dns",
+      "tag" : "dns-out"
+    }
+  ],
+  "policy" : {
+    "levels" : {
+      "8" : {
+        "connIdle" : 300,
+        "downlinkOnly" : 1,
+        "handshake" : 4,
+        "uplinkOnly" : 1
+      }
+    },
+    "system" : {
+      "statsOutboundDownlink" : true,
+      "statsOutboundUplink" : true
+    }
+  },
+  "remarks" : "🇵🇱 Польша [1]",
+  "routing" : {
+    "balancers" : [
+      {
+        "fallbackTag" : "proxy",
+        "selector" : [
+          "proxy"
+        ],
+        "strategy" : {
+          "settings" : {
+            "baselines" : [
+              "400ms",
+              "800ms"
+            ],
+            "expected" : 1,
+            "maxRTT" : "3s",
+            "tolerance" : 0.25
+          },
+          "type" : "leastLoad"
+        },
+        "tag" : "balancer"
+      }
+    ],
+    "domainMatcher" : "hybrid",
+    "domainStrategy" : "IPIfNonMatch",
+    "rules" : [
+      {
+        "domain" : [
+          "regexp:^.{250,}$",
+          "regexp:[^.]{64,}"
+        ],
+        "outboundTag" : "block",
+        "ruleTag" : "BLOCK_MALFORMED_DOMAIN",
+        "type" : "field"
+      },
+      {
+        "outboundTag" : "dns-out",
+        "port" : 53,
+        "type" : "field"
+      },
+      {
+        "domain" : [
+          "geosite:TORRENT"
+        ],
+        "outboundTag" : "block",
+        "ruleTag" : "TORRENT_BY_DOMAIN",
+        "type" : "field"
+      },
+      {
+        "outboundTag" : "block",
+        "port" : "6881-6889,51413,21413,17417,37305",
+        "ruleTag" : "TORRENT_BY_PORT",
+        "type" : "field"
+      },
+      {
+        "outboundTag" : "block",
+        "protocol" : [
+          "bittorrent"
+        ],
+        "ruleTag" : "TORRENT_BY_PROTOCOL",
+        "type" : "field"
+      },
+      {
+        "balancerTag" : "balancer",
+        "domain" : [
+          "geosite:google-play",
+          "geosite:github",
+          "geosite:twitch-ads",
+          "geosite:youtube",
+          "geosite:telegram"
+        ],
+        "ruleTag" : "PROXY_BY_DOMAIN",
+        "type" : "field"
+      },
+      {
+        "balancerTag" : "balancer",
+        "domain" : [
+          "domain:instagram.com",
+          "domain:cdninstagram.com",
+          "domain:instagr.am",
+          "domain:ig.me",
+          "domain:igcdn.com",
+          "domain:igsonar.com",
+          "domain:fbcdn.net",
+          "domain:facebook.com",
+          "domain:facebook.net",
+          "domain:fbsbx.com",
+          "domain:fb.com",
+          "domain:fb.me"
+        ],
+        "ruleTag" : "INSTAGRAM_PROXY",
+        "type" : "field"
+      },
+      {
+        "domain" : [
+          "geosite:private",
+          "geosite:category-ru",
+          "geosite:whitelist",
+          "geosite:microsoft",
+          "geosite:apple",
+          "geosite:epicgames",
+          "geosite:riot",
+          "geosite:escapefromtarkov",
+          "geosite:steam",
+          "geosite:twitch",
+          "geosite:pinterest",
+          "geosite:faceit"
+        ],
+        "outboundTag" : "direct",
+        "ruleTag" : "DIRECT_BY_DOMAIN",
+        "type" : "field"
+      },
+      {
+        "ip" : [
+          "geoip:private",
+          "geoip:direct"
+        ],
+        "outboundTag" : "direct",
+        "ruleTag" : "DIRECT_BY_IP",
+        "type" : "field"
+      },
+      {
+        "balancerTag" : "balancer",
+        "network" : "tcp,udp",
+        "ruleTag" : "PROXY_ALL",
+        "type" : "field"
+      }
+    ]
+  },
+  "stats" : {
 
+  }
+}
